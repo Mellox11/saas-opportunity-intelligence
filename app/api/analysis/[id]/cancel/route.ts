@@ -1,29 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { AnalysisOrchestrationService } from '@/lib/services/analysis-orchestration.service'
-import { getServerSession } from 'next-auth'
+
+export const dynamic = 'force-dynamic'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check authentication
-    const session = await getServerSession()
-    if (!session?.user?.id) {
+    // Lazy load all dependencies
+    const [{ prisma }, { AnalysisOrchestrationService }] = await Promise.all([
+      import('@/lib/db'),
+      import('@/lib/services/analysis-orchestration.service')
+    ])
+
+    // Get session token from cookies
+    const sessionToken = request.cookies.get('session-token')
+    
+    if (!sessionToken) {
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+    
+    // Verify session
+    const session = await prisma.session.findUnique({
+      where: { sessionToken: sessionToken.value },
+      include: { user: true }
+    })
+    
+    if (!session || session.expires < new Date()) {
+      return NextResponse.json(
+        { success: false, error: 'Session expired' },
         { status: 401 }
       )
     }
 
+    const user = session.user
     const analysisId = params.id
 
     // Check analysis ownership and status
     const analysis = await prisma.analysis.findFirst({
       where: {
         id: analysisId,
-        userId: session.user.id
+        userId: user.id
       },
       select: {
         id: true,
