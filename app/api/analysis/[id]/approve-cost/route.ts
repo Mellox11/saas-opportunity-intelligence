@@ -1,13 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { withAuth } from '@/lib/auth/auth-guard'
 import { ApiErrorHandler } from '@/lib/utils/api-response'
 
 export const dynamic = 'force-dynamic'
 
-async function handlePOST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const user = (request as any).user
+    // Get session token from cookies
+    const sessionToken = request.cookies.get('session-token')
+    
+    if (!sessionToken) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+    
+    // Verify session
+    const session = await prisma.session.findUnique({
+      where: { sessionToken: sessionToken.value },
+      include: { user: true }
+    })
+    
+    if (!session || session.expires < new Date()) {
+      return NextResponse.json(
+        { error: 'Session expired' },
+        { status: 401 }
+      )
+    }
+
+    const user = session.user
     const analysisId = params.id
     const body = await request.json()
 
@@ -45,8 +67,4 @@ async function handlePOST(request: NextRequest, { params }: { params: { id: stri
   } catch (error) {
     return ApiErrorHandler.handleError(error, 'Approve cost')
   }
-}
-
-export async function POST(request: NextRequest, context: { params: { id: string } }) {
-  return withAuth(handlePOST)(request, context)
 }
