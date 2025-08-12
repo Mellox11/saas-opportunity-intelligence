@@ -1,12 +1,13 @@
 {
   "name": "saas-opportunity-intelligence",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_ENV=development next dev",
     "build": "cross-env NODE_ENV=production next build",
     "start": "cross-env NODE_ENV=production next start",
-    "postinstall": "prisma generate",
+    "postinstall": "npx prisma generate",
+    "vercel-build": "npx prisma generate && next build",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",

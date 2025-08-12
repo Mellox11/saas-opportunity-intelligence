@@ -1,0 +1,12 @@
+{
+  "buildCommand": "npx prisma generate && next build",
+  "installCommand": "npm install && npx prisma generate",
+  "functions": {
+    "app/api/**": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "env": {
+    "PRISMA_GENERATE_DATAPROXY": "false"
+  }
+}
