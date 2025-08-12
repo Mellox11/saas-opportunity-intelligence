@@ -5,6 +5,8 @@ import { loginSchema } from '@/lib/validation/auth-schema'
 import { authRateLimiter, withRateLimit } from '@/lib/security/rate-limiter'
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 async function handler(request: NextRequest) {
   try {
     const body = await request.json()

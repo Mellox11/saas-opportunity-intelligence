@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { withAuth } from '@/lib/auth/auth-guard'
 import { ApiErrorHandler } from '@/lib/utils/api-response'
 
+export const dynamic = 'force-dynamic'
+
 async function handlePOST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const user = (request as any).user

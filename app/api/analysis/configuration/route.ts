@@ -4,6 +4,8 @@ import { configurationSchema } from '@/lib/validation/analysis-schema'
 import { withAuth } from '@/lib/auth/auth-guard'
 import { ApiErrorHandler } from '@/lib/utils/api-response'
 
+export const dynamic = 'force-dynamic'
+
 async function handleGET(request: NextRequest) {
   try {
     const user = (request as any).user
