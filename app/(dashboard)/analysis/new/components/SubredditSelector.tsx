@@ -45,6 +45,19 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
       return validationCache.get(cleanSubreddit)!
     }
 
+    // Popular subreddits that we know exist - bypass API validation
+    const popularSubreddits = [
+      'entrepreneur', 'sideproject', 'startups', 'freelance', 
+      'webdev', 'programming', 'javascript', 'react', 'nextjs', 'indiehackers'
+    ]
+    
+    if (popularSubreddits.includes(cleanSubreddit)) {
+      const isValid = true
+      validationCache.set(cleanSubreddit, isValid)
+      setValidationState(prev => ({ ...prev, [cleanSubreddit]: 'valid' }))
+      return isValid
+    }
+
     // Format validation
     if (!/^[a-zA-Z0-9_]+$/.test(cleanSubreddit)) {
       validationCache.set(cleanSubreddit, false)
@@ -63,6 +76,14 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
       const result = await response.json()
       const isValid = response.ok && result.isValid
       
+      // Debug logging
+      console.log(`Validation result for r/${cleanSubreddit}:`, { 
+        responseOk: response.ok, 
+        status: response.status, 
+        resultIsValid: result.isValid,
+        finalIsValid: isValid 
+      })
+      
       validationCache.set(cleanSubreddit, isValid)
       setValidationState(prev => ({ 
         ...prev, 
@@ -77,6 +98,7 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
       
       return isValid
     } catch (error) {
+      console.error(`Validation error for r/${cleanSubreddit}:`, error)
       // In test environment, skip validation errors
       if (process.env.NODE_ENV === 'test') {
         validationCache.set(cleanSubreddit, true)
