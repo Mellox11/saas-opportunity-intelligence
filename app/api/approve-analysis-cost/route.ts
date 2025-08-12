@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { ApiErrorHandler } from '@/lib/utils/api-response'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest) {
   try {
-    // Lazy load Prisma to avoid build-time database connections
-    const { prisma } = await import('@/lib/db')
+    // Extract analysisId from request body instead of URL params
+    const body = await request.json()
+    const { analysisId } = body
     
+    if (!analysisId) {
+      return NextResponse.json(
+        { error: 'Analysis ID is required' },
+        { status: 400 }
+      )
+    }
+
     // Get session token from cookies
     const sessionToken = request.cookies.get('session-token')
     
@@ -17,6 +25,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         { status: 401 }
       )
     }
+    
+    // Lazy load all dependencies to avoid any build-time evaluation
+    const [{ prisma }, { ApiErrorHandler }] = await Promise.all([
+      import('@/lib/db'),
+      import('@/lib/utils/api-response')
+    ])
     
     // Verify session
     const session = await prisma.session.findUnique({
@@ -32,8 +46,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const user = session.user
-    const analysisId = params.id
-    const body = await request.json()
 
     // Verify ownership
     const analysis = await prisma.analysis.findFirst({
@@ -44,7 +56,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     })
 
     if (!analysis) {
-      return ApiErrorHandler.notFound('Analysis not found')
+      return NextResponse.json(
+        { error: 'Analysis not found' },
+        { status: 404 }
+      )
     }
 
     // Update analysis with cost approval
@@ -62,11 +77,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
     })
 
-    return ApiErrorHandler.success({
+    return NextResponse.json({
+      success: true,
       message: 'Cost approved successfully',
       analysis: updated
     })
   } catch (error) {
-    return ApiErrorHandler.handleError(error, 'Approve cost')
+    console.error('Approve cost error:', error)
+    return NextResponse.json(
+      { error: 'Failed to approve cost' },
+      { status: 500 }
+    )
   }
 }

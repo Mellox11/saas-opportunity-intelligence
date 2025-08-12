@@ -51,10 +51,11 @@ export default function CostEstimationPage() {
 
   const handleConfirmApproval = async () => {
     try {
-      const response = await fetch(`/api/analysis/${analysisId}/approve-cost`, {
+      const response = await fetch('/api/approve-analysis-cost', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          analysisId,
           estimatedCost,
           budgetLimit: budget
         })
