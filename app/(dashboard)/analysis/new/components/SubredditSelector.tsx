@@ -158,7 +158,9 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
   }
 
   const removeSubreddit = (subreddit: string) => {
-    onChange(value.filter(s => s !== subreddit))
+    const newValue = value.filter(s => s !== subreddit)
+    console.log('🗑️ removeSubreddit:', { removing: subreddit, oldValue: value, newValue })
+    onChange(newValue)
   }
 
   const handleCustomSubmit = (e: React.FormEvent) => {
