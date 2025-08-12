@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { AuthService } from '@/lib/auth/jwt'
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies()
