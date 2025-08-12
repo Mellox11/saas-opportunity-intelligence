@@ -31,6 +31,16 @@ export function ConfigurationPreview({ configuration, className }: Configuration
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Debug logging to track configuration changes
+  useEffect(() => {
+    console.log('🔍 ConfigurationPreview received:', {
+      subreddits: configuration.subreddits,
+      subredditCount: configuration.subreddits?.length,
+      timeRange: configuration.timeRange,
+      keywords: configuration.keywords
+    })
+  }, [configuration])
+
   const fetchEstimation = useCallback(async () => {
     if (!configuration.subreddits?.length || !configuration.timeRange) {
       setEstimation(null)

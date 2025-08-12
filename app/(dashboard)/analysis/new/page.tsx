@@ -26,10 +26,17 @@ export default function NewAnalysisPage() {
   })
 
   const handleConfigurationChange = (updates: Partial<AnalysisConfiguration>) => {
-    setConfiguration(prev => ({
-      ...prev,
+    const newConfig = {
+      ...configuration,
       ...updates
-    }))
+    }
+    console.log('📝 Configuration updated:', {
+      previous: configuration,
+      updates,
+      new: newConfig,
+      subredditCount: newConfig.subreddits?.length
+    })
+    setConfiguration(newConfig)
     setError(null) // Clear errors on change
   }
 
