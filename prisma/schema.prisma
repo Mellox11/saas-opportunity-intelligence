@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  emailVerified Boolean  @default(false) @map("email_verified")
+  profile       String   @default("{}")
+  preferences   String   @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  analyses      Analysis[]
+  payments      Payment[]
+  sessions      Session[]
+  verificationTokens VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  
+  @@map("users")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id      String   @id @default(cuid())
+  token   String   @unique
+  expires DateTime
+  userId  String   @map("user_id")
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("password_reset_tokens")
+}
+
+// Placeholder models for future implementation
+model Analysis {
+  id              String         @id @default(cuid())
+  userId          String         @map("user_id")
+  status          String         @default("pending")
+  configuration   String
+  estimatedCost   Float?         @map("estimated_cost")
+  actualCost      Float?         @map("actual_cost")
+  budgetLimit     Float?         @map("budget_limit")
+  progress        String         @default("{}")
+  metadata        String         @default("{}")
+  errorDetails    String?        @map("error_details")
+  resultsSummary  String?        @map("results_summary")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  startedAt       DateTime?      @map("started_at")
+  completedAt     DateTime?      @map("completed_at")
+  
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  costEvents      CostEvent[]
+  redditPosts     RedditPost[]
+  opportunities   Opportunity[]
+  
+  @@map("analyses")
+}
+
+model CostEvent {
+  id              String         @id @default(cuid())
+  analysisId      String         @map("analysis_id")
+  eventType       String         @map("event_type")
+  provider        String
+  quantity        Int
+  unitCost        Float          @map("unit_cost")
+  totalCost       Float          @map("total_cost")
+  eventData       String         @default("{}")  @map("event_data")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  
+  analysis        Analysis       @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  
+  @@map("cost_events")
+}
+
+model Payment {
+  id              String         @id @default(cuid())
+  userId          String         @map("user_id")
+  amount          Float
+  currency        String         @default("USD")
+  status          String         @default("pending")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("payments")
+}
+
+// Reddit Data Models
+model RedditPost {
+  id              String         @id @default(cuid())
+  analysisId      String         @map("analysis_id")
+  redditId        String         @unique @map("reddit_id")
+  subreddit       String
+  title           String
+  content         String?
+  author          String
+  score           Int
+  numComments     Int            @map("num_comments")
+  createdUtc      DateTime       @map("created_utc")
+  url             String
+  permalink       String
+  rawData         String         @map("raw_data")
+  matchedKeywords String?        @map("matched_keywords")
+  processed       Boolean        @default(false)
+  embeddingId     String?        @map("embedding_id")
+  processedAt     DateTime       @default(now()) @map("processed_at")
+  
+  analysis        Analysis       @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  comments        RedditComment[]
+  opportunities   Opportunity[]
+  
+  @@index([analysisId])
+  @@index([subreddit])
+  @@index([score])
+  @@map("reddit_posts")
+}
+
+model RedditComment {
+  id              String         @id @default(cuid())
+  postId          String         @map("post_id")
+  redditId        String         @unique @map("reddit_id")
+  parentId        String?        @map("parent_id")
+  content         String
+  author          String
+  score           Int
+  createdUtc      DateTime       @map("created_utc")
+  rawData         String         @map("raw_data")
+  embeddingId     String?        @map("embedding_id")
+  processedAt     DateTime       @default(now()) @map("processed_at")
+  
+  post            RedditPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@index([postId])
+  @@index([score])
+  @@map("reddit_comments")
+}
+
+// AI Analysis Results
+model Opportunity {
+  id                      String         @id @default(cuid())
+  analysisId              String         @map("analysis_id")
+  sourcePostId            String?        @map("source_post_id")
+  title                   String
+  problemStatement        String         @map("problem_statement")
+  opportunityScore        Int            @map("opportunity_score")
+  confidenceScore         Float          @map("confidence_score")
+  urgencyScore            Int            @map("urgency_score")
+  marketSignalsScore      Int            @map("market_signals_score")
+  feasibilityScore        Int            @map("feasibility_score")
+  classification          String         // 'saas_feasible', 'not_feasible'
+  evidence                String         // JSON array of supporting quotes
+  antiPatterns            String?        @map("anti_patterns") // JSON array of warnings
+  metadata                String         @default("{}") // Additional AI insights
+  createdAt               DateTime       @default(now()) @map("created_at")
+  
+  analysis                Analysis       @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  sourcePost              RedditPost?    @relation(fields: [sourcePostId], references: [id])
+  
+  @@index([analysisId])
+  @@index([opportunityScore])
+  @@map("opportunities")
+}
