@@ -26,17 +26,10 @@ export default function NewAnalysisPage() {
   })
 
   const handleConfigurationChange = (updates: Partial<AnalysisConfiguration>) => {
-    const newConfig = {
-      ...configuration,
+    setConfiguration(prev => ({
+      ...prev,
       ...updates
-    }
-    console.log('📝 Configuration updated:', {
-      previous: configuration,
-      updates,
-      new: newConfig,
-      subredditCount: newConfig.subreddits?.length
-    })
-    setConfiguration(newConfig)
+    }))
     setError(null) // Clear errors on change
   }
 
@@ -187,7 +180,12 @@ export default function NewAnalysisPage() {
             <div className="lg:col-span-1">
               <div className="sticky top-8">
                 <ConfigurationPreview
-                  configuration={configuration as AnalysisConfiguration}
+                  configuration={{
+                    subreddits: configuration.subreddits || [],
+                    timeRange: configuration.timeRange || 30,
+                    keywords: configuration.keywords || { predefined: [], custom: [] },
+                    name: configuration.name || ''
+                  }}
                   className="mb-6"
                 />
 
