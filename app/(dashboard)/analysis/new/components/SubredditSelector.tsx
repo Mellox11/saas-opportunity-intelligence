@@ -123,23 +123,36 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
   const addSubreddit = async (subreddit: string) => {
     const cleanSubreddit = subreddit.replace(/^r\//, '').toLowerCase()
     
+    console.log('🎯 addSubreddit called:', {
+      original: subreddit,
+      cleaned: cleanSubreddit,
+      currentValue: value,
+      alreadyExists: value.includes(cleanSubreddit),
+      isAtLimit: value.length >= 3
+    })
+    
     if (!cleanSubreddit || value.includes(cleanSubreddit)) {
+      console.log('❌ Skipping - empty or already exists')
       return
     }
 
     if (value.length >= 3) {
+      console.log('❌ Skipping - at limit')
       return // Max 3 subreddits
     }
 
     // Add immediately for better UX, validate in background
     const newValue = [...value, cleanSubreddit]
+    console.log('✅ Adding subreddit immediately:', { newValue })
     onChange(newValue)
     
     // Validate in background
     const isValid = await validateSubreddit(cleanSubreddit)
+    console.log('🔍 Validation result:', { subreddit: cleanSubreddit, isValid })
     
     // If invalid, remove it
     if (!isValid) {
+      console.log('❌ Removing invalid subreddit:', cleanSubreddit)
       onChange(newValue.filter(s => s !== cleanSubreddit))
     }
   }
