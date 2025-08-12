@@ -46,12 +46,11 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
     }
 
     // Popular subreddits that we know exist - bypass API validation
-    const popularSubreddits = [
-      'entrepreneur', 'sideproject', 'startups', 'freelance', 
-      'webdev', 'programming', 'javascript', 'react', 'nextjs', 'indiehackers'
-    ]
+    // These match the POPULAR_SUBREDDITS array above (normalized to lowercase)
+    const popularSubreddits = POPULAR_SUBREDDITS.map(s => s.toLowerCase())
     
     if (popularSubreddits.includes(cleanSubreddit)) {
+      console.log(`✅ BYPASS: Popular subreddit r/${cleanSubreddit} validated instantly`)
       const isValid = true
       validationCache.set(cleanSubreddit, isValid)
       setValidationState(prev => ({ ...prev, [cleanSubreddit]: 'valid' }))
