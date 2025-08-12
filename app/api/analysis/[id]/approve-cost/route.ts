@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { ApiErrorHandler } from '@/lib/utils/api-response'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Lazy load Prisma to avoid build-time database connections
+    const { prisma } = await import('@/lib/db')
+    
     // Get session token from cookies
     const sessionToken = request.cookies.get('session-token')
     
