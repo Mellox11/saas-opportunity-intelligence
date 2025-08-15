@@ -42,7 +42,10 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
     
     // Check cache first
     if (validationCache.has(cleanSubreddit)) {
-      return validationCache.get(cleanSubreddit)!
+      const cachedValue = validationCache.get(cleanSubreddit)!
+      // Update validation state from cache
+      setValidationState(prev => ({ ...prev, [cleanSubreddit]: cachedValue ? 'valid' : 'invalid' }))
+      return cachedValue
     }
 
     // Popular subreddits that we know exist - bypass API validation
@@ -60,6 +63,7 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
     // Format validation
     if (!/^[a-zA-Z0-9_]+$/.test(cleanSubreddit)) {
       validationCache.set(cleanSubreddit, false)
+      setValidationState(prev => ({ ...prev, [cleanSubreddit]: 'invalid' }))
       return false
     }
 
@@ -98,6 +102,15 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
       return isValid
     } catch (error) {
       console.error(`Validation error for r/${cleanSubreddit}:`, error)
+      
+      // Check if it's a popular subreddit even on error
+      if (popularSubreddits.includes(cleanSubreddit)) {
+        console.log(`✅ FALLBACK: Popular subreddit r/${cleanSubreddit} validated despite API error`)
+        validationCache.set(cleanSubreddit, true)
+        setValidationState(prev => ({ ...prev, [cleanSubreddit]: 'valid' }))
+        return true
+      }
+      
       // In test environment, skip validation errors
       if (process.env.NODE_ENV === 'test') {
         validationCache.set(cleanSubreddit, true)
@@ -177,6 +190,7 @@ export function SubredditSelector({ value, onChange, disabled }: SubredditSelect
         validateSubreddit(subreddit)
       }
     })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
   return (
