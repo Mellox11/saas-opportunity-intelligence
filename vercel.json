@@ -2,8 +2,8 @@
   "buildCommand": "npx prisma generate && next build",
   "installCommand": "npm install && npx prisma generate",
   "functions": {
-    "app/api/**": {
-      "runtime": "nodejs18.x"
+    "app/api/**/*.ts": {
+      "maxDuration": 30
     }
   },
   "env": {
