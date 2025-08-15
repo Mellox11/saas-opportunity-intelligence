@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { CostTrackingService } from '@/lib/services/cost-tracking.service'
 import { calculateEventCost } from '@/lib/utils/cost-calculator'
+import { circuitBreakerRegistry } from '@/lib/infrastructure/circuit-breaker-registry'
+import { AppLogger } from '@/lib/observability/logger'
 
 // Schema for AI classification results
 const opportunityClassificationSchema = z.object({
@@ -126,31 +128,50 @@ export class AIProcessingService {
   private async classifyPost(post: any): Promise<OpportunityClassification> {
     const prompt = this.buildClassificationPrompt(post)
     
-    try {
-      const { object } = await generateObject({
-        model: openai(this.model),
-        schema: opportunityClassificationSchema,
-        prompt,
-        temperature: 0.3, // Lower temperature for more consistent classification
-        maxTokens: 1000
-      })
-      
-      return object
-    } catch (error) {
-      console.error('OpenAI API error:', error)
-      // Return non-feasible classification on error
-      return {
-        isSaasFeasible: false,
-        confidence: 0,
-        urgencyScore: 0,
-        marketSignalsScore: 0,
-        feasibilityScore: 0,
-        problemStatement: '',
-        evidence: [],
-        antiPatterns: [],
-        reasoning: 'Classification failed'
+    return circuitBreakerRegistry.executeWithOpenAIBreaker(
+      async () => {
+        const { object } = await generateObject({
+          model: openai(this.model),
+          schema: opportunityClassificationSchema,
+          prompt,
+          temperature: 0.3 // Lower temperature for more consistent classification
+        })
+        
+        AppLogger.debug('AI classification completed', {
+          service: 'ai-processing',
+          operation: 'classify_post',
+          metadata: {
+            postId: post.id,
+            isFeasible: object.isSaasFeasible,
+            confidence: object.confidence
+          }
+        })
+        
+        return object
+      },
+      async () => {
+        // Fallback: return non-feasible classification
+        AppLogger.warn('OpenAI circuit breaker active, using fallback classification', {
+          service: 'ai-processing',
+          operation: 'classify_post_fallback',
+          metadata: {
+            postId: post.id
+          }
+        })
+        
+        return {
+          isSaasFeasible: false,
+          confidence: 0,
+          urgencyScore: 0,
+          marketSignalsScore: 0,
+          feasibilityScore: 0,
+          problemStatement: 'Classification unavailable - service degraded',
+          evidence: [],
+          antiPatterns: [],
+          reasoning: 'OpenAI service unavailable'
+        }
       }
-    }
+    )
   }
 
   /**

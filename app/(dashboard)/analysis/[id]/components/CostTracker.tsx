@@ -8,7 +8,9 @@ import {
   AlertTriangle, 
   StopCircle,
   Activity,
-  Zap
+  Zap,
+  Wifi,
+  WifiOff
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -16,6 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { formatCurrency, calculateBudgetStatus } from '@/lib/utils/cost-calculator'
 import { CostTrackingUpdate } from '@/lib/validation/cost-schema'
 import { cn } from '@/lib/utils'
+import { useWebSocket, WebSocketEvent } from '@/lib/websocket/websocket-client'
 
 interface CostTrackerProps {
   analysisId: string
@@ -63,7 +66,31 @@ export function CostTracker({
     return () => clearInterval(interval)
   }, [analysisId, onCircuitBreak])
   
-  // TODO: Replace with WebSocket connection
+  // WebSocket connection for real-time updates
+  const { on, isConnected } = useWebSocket(analysisId)
+  
+  useEffect(() => {
+    // Subscribe to WebSocket cost updates
+    const unsubscribeCost = on<CostTrackingUpdate>(
+      WebSocketEvent.COST_UPDATE,
+      (data) => {
+        setTrackingData(data)
+        setError(null)
+      }
+    )
+    
+    const unsubscribeError = on<{ message: string }>(
+      WebSocketEvent.ERROR,
+      (data) => {
+        setError(data.message)
+      }
+    )
+    
+    return () => {
+      unsubscribeCost()
+      unsubscribeError()
+    }
+  }, [on])
   // useEffect(() => {
   //   const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_URL}/cost-tracking/${analysisId}`)
   //   
@@ -127,10 +154,15 @@ export function CostTracker({
             Cost Tracking
           </h3>
           <div className="flex items-center gap-3">
-            {isConnected && (
+            {isConnected() ? (
               <div className="flex items-center gap-1 text-xs text-green-500">
-                <Zap className="h-3 w-3" />
-                Live
+                <Wifi className="h-3 w-3" />
+                <span>Live</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-xs text-yellow-500">
+                <WifiOff className="h-3 w-3" />
+                <span>Polling</span>
               </div>
             )}
             <div className={cn('text-sm font-medium', getStatusColor())}>

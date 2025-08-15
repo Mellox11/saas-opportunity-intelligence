@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { subredditValidationSchema } from '@/lib/validation/analysis-schema'
 import { ApiErrorHandler } from '@/lib/utils/api-response'
+import { redditRateLimiter, withRateLimit } from '@/lib/security/rate-limiter'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,7 +87,7 @@ async function validateSubredditWithReddit(subreddit: string): Promise<boolean> 
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     const body = await request.json()
     const { subreddit } = subredditValidationSchema.parse(body)
@@ -138,3 +139,21 @@ export async function POST(request: NextRequest) {
     return ApiErrorHandler.handleError(error, 'Subreddit validation')
   }
 }
+
+// Apply rate limiting to Reddit validation endpoint
+export const POST = withRateLimit(redditRateLimiter, {
+  skipCondition: (req: NextRequest) => {
+    // Skip rate limiting for popular subreddits since they're cached
+    try {
+      const url = new URL(req.url)
+      const subreddit = url.searchParams.get('subreddit')?.toLowerCase()
+      const popularSubreddits = [
+        'entrepreneur', 'sideproject', 'startups', 'freelance', 
+        'webdev', 'programming', 'javascript', 'react', 'nextjs', 'indiehackers'
+      ]
+      return popularSubreddits.includes(subreddit || '')
+    } catch {
+      return false
+    }
+  }
+})(handler)

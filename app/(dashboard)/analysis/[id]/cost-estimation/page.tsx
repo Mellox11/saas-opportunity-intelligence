@@ -151,7 +151,7 @@ export default function CostEstimationPage() {
                 <CardHeader>
                   <CardTitle className="text-white">Set Your Budget</CardTitle>
                   <CardDescription>
-                    Maximum amount you're willing to spend on this analysis
+                    Maximum amount you&rsquo;re willing to spend on this analysis
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

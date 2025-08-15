@@ -3,8 +3,12 @@ import { costEstimateSchema } from '@/lib/validation/cost-schema'
 import { generateCostEstimate } from '@/lib/utils/cost-calculator'
 import { CostTrackingService } from '@/lib/services/cost-tracking.service'
 import { z } from 'zod'
+import { costEstimationRateLimiter, withRateLimit } from '@/lib/security/rate-limiter'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { AppLogger } from '@/lib/observability/logger'
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     const body = await request.json()
     
@@ -14,12 +18,19 @@ export async function POST(request: NextRequest) {
     // Get historical accuracy if user is authenticated
     let historicalAccuracy: number | undefined
     
-    // TODO: Get user from session/JWT when auth is implemented
-    // const session = await getServerSession()
-    // if (session?.user?.id) {
-    //   const trackingService = new CostTrackingService()
-    //   historicalAccuracy = await trackingService.getHistoricalAccuracy(session.user.id)
-    // }
+    // Get user from NextAuth session
+    const session = await getServerSession(authOptions)
+    if (session?.user?.id) {
+      const trackingService = new CostTrackingService()
+      historicalAccuracy = await trackingService.getHistoricalAccuracy(session.user.id)
+      
+      AppLogger.info('Cost estimate requested by authenticated user', {
+        service: 'cost-estimate-api',
+        operation: 'cost_estimate',
+        userId: session.user.id,
+        hasHistoricalData: historicalAccuracy !== undefined
+      })
+    }
     
     // Generate cost estimate
     const estimate = generateCostEstimate(
@@ -38,7 +49,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response)
     
   } catch (error) {
-    console.error('Cost estimation error:', error)
+    AppLogger.error('Cost estimation error', {
+      service: 'cost-estimate-api',
+      operation: 'cost_estimate_error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -56,3 +71,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// Apply rate limiting to cost estimation endpoint
+export const POST = withRateLimit(costEstimationRateLimiter)(handler)

@@ -3,6 +3,8 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/db'
 import { AuthService } from './jwt'
 import { loginSchema } from '@/lib/validation/auth-schema'
+import { SafeParser } from '@/lib/utils/safe-parser'
+import { UserProfileSchema, type NextAuthUser } from '@/types/user'
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -38,11 +40,18 @@ export const authOptions: NextAuthOptions = {
             return null
           }
           
+          // Parse user profile safely with type validation
+          const userProfile = SafeParser.parseJSONWithFallback(
+            user.profile as string,
+            UserProfileSchema,
+            null
+          )
+
           return {
             id: user.id,
             email: user.email,
-            name: (user.profile as any)?.name || user.email,
-          }
+            name: userProfile?.name || user.email,
+          } as NextAuthUser
         } catch (error) {
           return null
         }

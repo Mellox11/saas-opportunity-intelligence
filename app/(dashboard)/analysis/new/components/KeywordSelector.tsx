@@ -127,7 +127,7 @@ export function KeywordSelector({ value, onChange, disabled }: KeywordSelectorPr
                       htmlFor={`predefined-${keyword}`}
                       className="text-sm text-gray-300 cursor-pointer flex-1"
                     >
-                      "{keyword}"
+                      &ldquo;{keyword}&rdquo;
                     </Label>
                   </div>
                 )
@@ -182,7 +182,7 @@ export function KeywordSelector({ value, onChange, disabled }: KeywordSelectorPr
                 variant="secondary"
                 className="bg-gray-800 text-gray-300 border border-gray-700 flex items-center gap-2"
               >
-                "{keyword}"
+                &ldquo;{keyword}&rdquo;
                 <button
                   onClick={() => removeCustomKeyword(keyword)}
                   disabled={disabled}

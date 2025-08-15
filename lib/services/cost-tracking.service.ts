@@ -1,8 +1,62 @@
 import { prisma } from '@/lib/db'
 import { CostEvent, CostTrackingUpdate } from '@/lib/validation/cost-schema'
 import { calculateAccuracy, calculateBudgetStatus, shouldTriggerCircuitBreaker } from '@/lib/utils/cost-calculator'
+import { cancelAnalysisJob } from '@/lib/jobs/analysis-job-trigger'
+import { AppLogger } from '@/lib/observability/logger'
 
 export class CostTrackingService {
+  /**
+   * Send notification about budget exceeded
+   */
+  private async sendBudgetExceededNotification(
+    analysisId: string,
+    currentCost: number,
+    budgetLimit: number
+  ): Promise<void> {
+    try {
+      // Get analysis with user details
+      const analysis = await prisma.analysis.findUnique({
+        where: { id: analysisId },
+        include: { user: true }
+      })
+      
+      if (!analysis) return
+      
+      // TODO: Create notification record when notification table is implemented
+      // await prisma.notification.create({
+      //   data: {
+      //     userId: analysis.userId,
+      //     type: 'budget_exceeded',
+      //     title: 'Analysis Stopped - Budget Limit Reached',
+      //     message: `Your analysis has been stopped because the cost ($${currentCost.toFixed(2)}) was approaching your budget limit ($${budgetLimit.toFixed(2)}).`,
+      //     metadata: JSON.stringify({
+      //       analysisId,
+      //       currentCost,
+      //       budgetLimit,
+      //       timestamp: new Date().toISOString()
+      //     })
+      //   }
+      // })
+      
+      AppLogger.info('Budget exceeded notification sent', {
+        service: 'cost-tracking',
+        operation: 'send_notification',
+        analysisId,
+        userId: analysis.userId
+      })
+      
+    } catch (error) {
+      AppLogger.error('Failed to send budget exceeded notification', {
+        service: 'cost-tracking',
+        operation: 'send_notification_error',
+        analysisId,
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      }, error as Error)
+    }
+  }
+  
   /**
    * Record a cost event for an analysis
    */
@@ -15,7 +69,7 @@ export class CostTrackingService {
         quantity: event.quantity,
         unitCost: event.unitCost,
         totalCost: event.totalCost,
-        eventData: event.eventData || {}
+        eventData: event.eventData ? JSON.stringify(event.eventData) : null
       }
     })
     
@@ -74,16 +128,31 @@ export class CostTrackingService {
       where: { id: analysisId },
       data: {
         status: 'cancelled',
-        errorDetails: {
+        errorDetails: JSON.stringify({
           type: 'BUDGET_EXCEEDED',
           message: `Analysis stopped: Cost ($${currentCost.toFixed(2)}) approaching budget limit ($${budgetLimit.toFixed(2)})`,
           timestamp: new Date().toISOString()
-        }
+        })
       }
     })
     
-    // TODO: Send notification to user about analysis being stopped
-    // TODO: Trigger job cancellation in worker system
+    // Send notification to user about analysis being stopped
+    await this.sendBudgetExceededNotification(analysisId, currentCost, budgetLimit)
+    
+    // Trigger job cancellation in worker system
+    await cancelAnalysisJob(analysisId)
+    
+    AppLogger.business('Analysis stopped due to budget limit', {
+      service: 'cost-tracking',
+      operation: 'handle_budget_exceeded',
+      businessEvent: 'budget_exceeded',
+      analysisId,
+      metadata: {
+        currentCost,
+        budgetLimit,
+        exceeded: currentCost > budgetLimit
+      }
+    })
   }
   
   /**
@@ -156,13 +225,23 @@ export class CostTrackingService {
     const accuracy = calculateAccuracy(analysis.estimatedCost, analysis.actualCost)
     
     // Store accuracy in metadata for future reference
+    const currentAnalysis = await prisma.analysis.findUnique({
+      where: { id: analysisId },
+      select: { metadata: true }
+    })
+    
+    const existingMetadata = currentAnalysis?.metadata 
+      ? JSON.parse(currentAnalysis.metadata as string) 
+      : {}
+    
     await prisma.analysis.update({
       where: { id: analysisId },
       data: {
-        metadata: {
+        metadata: JSON.stringify({
+          ...existingMetadata,
           costAccuracy: accuracy,
           accuracyCalculatedAt: new Date().toISOString()
-        }
+        })
       }
     })
     
@@ -203,6 +282,20 @@ export class CostTrackingService {
     return parseFloat(averageAccuracy.toFixed(2))
   }
   
+  /**
+   * Get total analysis cost
+   */
+  async getTotalAnalysisCost(analysisId: string): Promise<number> {
+    const result = await prisma.costEvent.aggregate({
+      where: { analysisId },
+      _sum: {
+        totalCost: true
+      }
+    })
+    
+    return result._sum.totalCost || 0
+  }
+
   /**
    * Get cost breakdown for completed analysis
    */

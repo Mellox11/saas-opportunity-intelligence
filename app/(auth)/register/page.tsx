@@ -56,7 +56,7 @@ export default function RegisterPage() {
         <CardHeader>
           <CardTitle className="text-2xl text-center">Check your email</CardTitle>
           <CardDescription className="text-center">
-            We've sent you a verification link. Please check your email to activate your account.
+            We&rsquo;ve sent you a verification link. Please check your email to activate your account.
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">

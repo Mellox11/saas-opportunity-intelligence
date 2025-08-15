@@ -3,6 +3,9 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { AnalysisOrchestrationService } from '@/lib/services/analysis-orchestration.service'
 import { getServerSession } from 'next-auth'
+import { createCorrelatedLogger } from '@/lib/middleware/correlation'
+import { AppLogger } from '@/lib/observability/logger'
+import { analysisRateLimiter, withRateLimit } from '@/lib/security/rate-limiter'
 
 // Validation schema for start analysis request
 const startAnalysisSchema = z.object({
@@ -15,21 +18,53 @@ const startAnalysisSchema = z.object({
   maxCost: z.number().positive().max(100).default(25) // $25 default max
 })
 
-export async function POST(request: NextRequest) {
+async function handler(request: NextRequest) {
+  const logger = createCorrelatedLogger('api', 'start_analysis')
+  const startTime = performance.now()
+  
   try {
+    logger.info('Analysis start request received')
+
     // Check authentication
     const session = await getServerSession()
     if (!session?.user?.id) {
+      logger.warn('Unauthorized analysis start attempt')
+      
+      AppLogger.auth('Unauthorized analysis start attempt', {
+        service: 'api',
+        operation: 'start_analysis',
+        authEvent: 'failed_login',
+        success: false
+      })
+
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
+    logger.info('User authenticated for analysis start', {
+      userId: session.user.id
+    })
+
     const body = await request.json()
+    logger.debug('Request body parsed', {
+      metadata: {
+        subredditCount: body.subreddits?.length,
+        timeRange: body.timeRange,
+        maxCost: body.maxCost
+      }
+    })
+
     const validationResult = startAnalysisSchema.safeParse(body)
     
     if (!validationResult.success) {
+      logger.warn('Request validation failed', {
+        metadata: {
+          validationErrors: validationResult.error.issues
+        }
+      })
+
       return NextResponse.json(
         { 
           success: false, 
@@ -41,6 +76,16 @@ export async function POST(request: NextRequest) {
     }
 
     const { subreddits, timeRange, keywords, maxCost } = validationResult.data
+
+    logger.info('Validated request data', {
+      userId: session.user.id,
+      metadata: {
+        subreddits,
+        timeRange,
+        keywordCount: keywords.predefined.length + keywords.custom.length,
+        maxCost
+      }
+    })
 
     // Create analysis record
     const analysis = await prisma.analysis.create({
@@ -63,6 +108,15 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    logger.info('Analysis record created', {
+      analysisId: analysis.id,
+      userId: session.user.id,
+      metadata: {
+        estimatedCost: analysis.estimatedCost,
+        maxCost: analysis.maxCost
+      }
+    })
+
     // Start analysis pipeline
     const orchestrationService = new AnalysisOrchestrationService()
     
@@ -78,6 +132,13 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      const duration = performance.now() - startTime
+      logger.performance('Analysis start completed successfully', duration, {
+        analysisId: analysis.id,
+        jobId,
+        userId: session.user.id
+      })
+
       return NextResponse.json({
         success: true,
         analysisId: analysis.id,
@@ -87,6 +148,11 @@ export async function POST(request: NextRequest) {
       })
 
     } catch (orchestrationError) {
+      logger.error('Orchestration service failed', {
+        analysisId: analysis.id,
+        userId: session.user.id
+      }, orchestrationError as Error)
+
       // If orchestration fails, mark analysis as failed
       await prisma.analysis.update({
         where: { id: analysis.id },
@@ -105,7 +171,8 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Analysis start error:', error)
+    const duration = performance.now() - startTime
+    logger.error('Analysis start request failed', { duration }, error as Error)
     
     return NextResponse.json(
       { 
@@ -117,3 +184,27 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+// Apply rate limiting to analysis start endpoint
+export const POST = withRateLimit(analysisRateLimiter, {
+  keyGenerator: (req: NextRequest) => {
+    // Rate limit by IP to prevent abuse while allowing legitimate users
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+              req.headers.get('x-real-ip') || 
+              'unknown'
+    return `analysis:${ip}`
+  },
+  onLimitReached: (identifier, result) => {
+    AppLogger.business('Analysis rate limit exceeded', {
+      service: 'api',
+      operation: 'analysis_rate_limit_exceeded',
+      businessEvent: 'security_event',
+      metadata: {
+        identifier,
+        count: result.count,
+        maxRequests: 10,
+        windowMs: 60 * 60 * 1000 // 1 hour
+      }
+    })
+  }
+})(handler)

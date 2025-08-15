@@ -1,14 +1,11 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'crypto'
+import { EnvironmentConfig } from '@/lib/config/environment'
 
 export class AuthService {
   private static get JWT_SECRET(): string {
-    const secret = process.env.JWT_SECRET
-    if (!secret) {
-      throw new Error('JWT_SECRET environment variable is required')
-    }
-    return secret
+    return EnvironmentConfig.JWT_SECRET
   }
   
   static async hashPassword(password: string): Promise<string> {

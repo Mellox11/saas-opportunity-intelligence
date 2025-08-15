@@ -11,6 +11,12 @@ const customJestConfig = {
   },
   testEnvironment: 'jest-environment-jsdom',
   setupFiles: ['<rootDir>/jest.polyfills.js'],
+  collectCoverageFrom: [
+    '**/*.{ts,tsx}',
+    '!**/*.d.ts',
+    '!**/node_modules/**',
+    '!**/.next/**',
+  ],
 }
 
 module.exports = createJestConfig(customJestConfig)

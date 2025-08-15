@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { costApprovalSchema } from '@/lib/validation/cost-schema'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
+import { triggerAnalysisJob } from '@/lib/jobs/analysis-job-trigger'
+import { AppLogger } from '@/lib/observability/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +27,17 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    // TODO: Trigger analysis job in worker system
-    // await triggerAnalysisJob(analysis.id)
+    // Trigger analysis job in worker system
+    await triggerAnalysisJob(analysis.id)
+    
+    AppLogger.business('Cost approved and analysis triggered', {
+      service: 'approve-cost-api',
+      operation: 'cost_approval',
+      businessEvent: 'cost_approved',
+      analysisId: analysis.id,
+      estimatedCost: validatedData.estimatedCost,
+      approvedBudget: validatedData.approvedBudget
+    })
     
     return NextResponse.json({
       success: true,
@@ -36,7 +47,11 @@ export async function POST(request: NextRequest) {
     })
     
   } catch (error) {
-    console.error('Cost approval error:', error)
+    AppLogger.error('Cost approval error', {
+      service: 'approve-cost-api',
+      operation: 'cost_approval_error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    })
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

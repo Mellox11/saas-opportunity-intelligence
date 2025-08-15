@@ -1,6 +1,8 @@
 import { RedditListing, ProcessedRedditPost, RedditComment } from '@/lib/validation/reddit-schema'
 import { CostTrackingService } from '@/lib/services/cost-tracking.service'
 import { calculateEventCost } from '@/lib/utils/cost-calculator'
+import { circuitBreakerRegistry } from '@/lib/infrastructure/circuit-breaker-registry'
+import { AppLogger } from '@/lib/observability/logger'
 
 export class RedditClient {
   private readonly baseUrl = 'https://www.reddit.com'
@@ -72,38 +74,62 @@ export class RedditClient {
     limit: number = 100,
     after?: string | null
   ): Promise<{ posts: ProcessedRedditPost[], after: string | null }> {
-    await this.enforceRateLimit()
-    
-    const timeFilter = this.getTimeFilter(timeRange)
-    const url = `${this.baseUrl}/r/${subreddit}/${timeFilter}.json?limit=${limit}${after ? `&after=${after}` : ''}`
-    
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': this.userAgent
+    return circuitBreakerRegistry.executeWithRedditBreaker(
+      async () => {
+        await this.enforceRateLimit()
+        
+        const timeFilter = this.getTimeFilter(timeRange)
+        const url = `${this.baseUrl}/r/${subreddit}/${timeFilter}.json?limit=${limit}${after ? `&after=${after}` : ''}`
+        
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': this.userAgent
+          }
+        })
+        
+        await this.trackRedditCost()
+        
+        if (!response.ok) {
+          throw new Error(`Reddit API error: ${response.status} ${response.statusText}`)
         }
-      })
-      
-      await this.trackRedditCost()
-      
-      if (!response.ok) {
-        throw new Error(`Reddit API error: ${response.status} ${response.statusText}`)
+        
+        const data: RedditListing = await response.json()
+        
+        const posts: ProcessedRedditPost[] = data.data.children
+          .filter(child => child.kind === 't3') // t3 = posts
+          .map(child => this.transformRedditPost(child.data, subreddit))
+        
+        AppLogger.info('Reddit posts fetched successfully', {
+          service: 'reddit-client',
+          operation: 'fetch_posts',
+          metadata: {
+            subreddit,
+            postCount: posts.length,
+            hasMore: !!data.data.after
+          }
+        })
+        
+        return {
+          posts,
+          after: data.data.after
+        }
+      },
+      async () => {
+        // Fallback: return empty result with warning
+        AppLogger.warn('Reddit API circuit breaker active, returning empty results', {
+          service: 'reddit-client',
+          operation: 'fetch_posts_fallback',
+          metadata: {
+            subreddit
+          }
+        })
+        
+        return {
+          posts: [],
+          after: null
+        }
       }
-      
-      const data: RedditListing = await response.json()
-      
-      const posts: ProcessedRedditPost[] = data.data.children
-        .filter(child => child.kind === 't3') // t3 = posts
-        .map(child => this.transformRedditPost(child.data, subreddit))
-      
-      return {
-        posts,
-        after: data.data.after
-      }
-    } catch (error) {
-      console.error(`Error fetching posts from r/${subreddit}:`, error)
-      throw error
-    }
+    )
   }
 
   /**

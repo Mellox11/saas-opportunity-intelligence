@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { AuthService } from '@/lib/auth/jwt'
 import { forgotPasswordSchema } from '@/lib/validation/auth-schema'
-import { authRateLimiter, withRateLimit } from '@/lib/security/rate-limiter'
+import { passwordResetRateLimiter, withRateLimit } from '@/lib/security/rate-limiter'
 import { emailService } from '@/lib/email/email-service'
 
 async function handler(request: NextRequest) {
@@ -61,4 +61,4 @@ async function handler(request: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(authRateLimiter)(handler)
+export const POST = withRateLimit(passwordResetRateLimiter)(handler)
