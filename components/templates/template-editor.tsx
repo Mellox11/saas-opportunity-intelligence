@@ -83,7 +83,7 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
 
     } catch (error) {
       AppLogger.error('Failed to save template', {
-        component: 'template-editor',
+        service: 'template-editor',
         operation: 'save_template_error',
         metadata: {
           templateId: template?.id,

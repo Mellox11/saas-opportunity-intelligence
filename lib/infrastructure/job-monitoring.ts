@@ -67,7 +67,9 @@ export class JobMonitoringService {
         AppLogger.error('Job monitoring metrics collection failed', {
           service: 'job-monitoring',
           operation: 'metrics_collection_error',
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
       })
     }, this.monitoringIntervalMs)
@@ -78,8 +80,10 @@ export class JobMonitoringService {
     AppLogger.info('Job monitoring service started', {
       service: 'job-monitoring',
       operation: 'service_started',
-      monitoringInterval: this.monitoringIntervalMs,
-      alertConfig: this.alertConfig
+      metadata: {
+        monitoringInterval: this.monitoringIntervalMs,
+        alertConfig: this.alertConfig
+      }
     })
   }
 

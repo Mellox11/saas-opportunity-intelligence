@@ -62,7 +62,7 @@ export function ShareButton({
 
     try {
       AppLogger.info('Creating share link', {
-        component: 'share-button',
+        service: 'share-button',
         operation: 'create_share_link',
         metadata: {
           reportId: report.id,
@@ -101,7 +101,7 @@ export function ShareButton({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
       AppLogger.error('Failed to create share link', {
-        component: 'share-button',
+        service: 'share-button',
         operation: 'create_share_link_error',
         metadata: {
           reportId: report.id,

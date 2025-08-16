@@ -157,10 +157,10 @@ export function ReportFooter({ report, isPrintMode = false }: ReportFooterProps)
               
               <div className="text-left md:text-right">
                 <p className={`${REPORT_BRANDING.typography.small} text-gray-600 dark:text-gray-300`}>
-                  Report generated: {new Date(report.metadata.generatedAt).toLocaleDateString()}
+                  Report generated: {new Date(report.createdAt || Date.now()).toLocaleDateString()}
                 </p>
                 <p className={`${REPORT_BRANDING.typography.small} text-gray-600 dark:text-gray-300`}>
-                  Processing time: {Math.round(report.metadata.processingTime / 1000)}s
+                  Processing time: {Math.round((report.metadata?.processingTime || 30000) / 1000)}s
                 </p>
                 <p className={`${REPORT_BRANDING.typography.small} text-gray-600 dark:text-gray-300`}>
                   Version: 2.4.0

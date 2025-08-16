@@ -25,8 +25,10 @@ export async function GET(request: NextRequest) {
     AppLogger.info('Circuit breaker health check requested', {
       service: 'circuit-breaker-health',
       operation: 'health_check',
-      overallHealth: overallHealth.status,
-      healthPercentage: overallHealth.summary.healthPercentage
+      metadata: {
+        overallHealth: overallHealth.status,
+        healthPercentage: overallHealth.summary.healthPercentage
+      }
     })
 
     return NextResponse.json({
@@ -41,7 +43,9 @@ export async function GET(request: NextRequest) {
     AppLogger.error('Circuit breaker health check failed', {
       service: 'circuit-breaker-health',
       operation: 'health_check_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     })
 
     return NextResponse.json({
@@ -78,7 +82,9 @@ export async function POST(request: NextRequest) {
             service: 'circuit-breaker-admin',
             operation: 'reset_breaker',
             businessEvent: 'system_administration',
-            breakerName: breaker
+            metadata: {
+              breakerName: breaker
+            }
           })
 
           return NextResponse.json({
@@ -105,7 +111,9 @@ export async function POST(request: NextRequest) {
     AppLogger.error('Circuit breaker admin action failed', {
       service: 'circuit-breaker-admin',
       operation: 'admin_action_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     })
 
     return NextResponse.json({

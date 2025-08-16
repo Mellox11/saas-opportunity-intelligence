@@ -40,10 +40,12 @@ export async function POST(request: NextRequest) {
     const { opportunityId, dimensionName, userRating } = validatedData
 
     logger.info('Processing dimension feedback submission', {
-      userId,
-      opportunityId,
-      dimensionName,
-      userRating
+      metadata: {
+        userId,
+        opportunityId,
+        dimensionName,
+        userRating
+      }
     })
 
     // Verify opportunity exists and belongs to user
@@ -63,8 +65,10 @@ export async function POST(request: NextRequest) {
 
     if (!opportunity) {
       logger.warn('Opportunity not found or access denied', {
-        userId,
-        opportunityId
+        metadata: {
+          userId,
+          opportunityId
+        }
       })
       return NextResponse.json(
         { error: 'Opportunity not found or access denied' },
@@ -90,18 +94,19 @@ export async function POST(request: NextRequest) {
           id: existingFeedback.id
         },
         data: {
-          userRating,
-          updatedAt: new Date()
+          userRating
         }
       })
 
       logger.info('Dimension feedback updated', {
-        feedbackId: updatedFeedback.id,
-        userId,
-        opportunityId,
-        dimensionName,
-        userRating,
-        previousRating: existingFeedback.userRating
+        metadata: {
+          feedbackId: updatedFeedback.id,
+          userId,
+          opportunityId,
+          dimensionName,
+          userRating,
+          previousRating: existingFeedback.userRating
+        }
       })
 
       return NextResponse.json({
@@ -119,18 +124,18 @@ export async function POST(request: NextRequest) {
           opportunityId,
           dimensionName,
           userId,
-          userRating,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          userRating
         }
       })
 
       logger.info('Dimension feedback created', {
-        feedbackId: newFeedback.id,
-        userId,
-        opportunityId,
-        dimensionName,
-        userRating
+        metadata: {
+          feedbackId: newFeedback.id,
+          userId,
+          opportunityId,
+          dimensionName,
+          userRating
+        }
       })
 
       return NextResponse.json({
@@ -146,7 +151,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       logger.warn('Invalid dimension feedback data', {
-        errors: error.errors
+        metadata: {
+          errors: error.errors
+        }
       })
       return NextResponse.json(
         { 
@@ -158,7 +165,9 @@ export async function POST(request: NextRequest) {
     }
 
     logger.error('Failed to process dimension feedback', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }, error as Error)
 
     return NextResponse.json(
@@ -221,8 +230,7 @@ export async function GET(request: NextRequest) {
       select: {
         dimensionName: true,
         userRating: true,
-        createdAt: true,
-        updatedAt: true
+        createdAt: true
       }
     })
 
@@ -230,16 +238,17 @@ export async function GET(request: NextRequest) {
     const feedbackMap = feedback.reduce((acc, item) => {
       acc[item.dimensionName] = {
         userRating: item.userRating,
-        createdAt: item.createdAt.toISOString(),
-        updatedAt: item.updatedAt.toISOString()
+        createdAt: item.createdAt.toISOString()
       }
       return acc
     }, {} as Record<string, any>)
 
     logger.info('Retrieved dimension feedback', {
-      userId,
-      opportunityId,
-      feedbackCount: feedback.length
+      metadata: {
+        userId,
+        opportunityId,
+        feedbackCount: feedback.length
+      }
     })
 
     return NextResponse.json({
@@ -249,7 +258,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     logger.error('Failed to retrieve dimension feedback', {
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }, error as Error)
 
     return NextResponse.json(

@@ -43,10 +43,12 @@ export function Cached(options: CacheOptions = {}) {
         AppLogger.debug('Method result cached', {
           service: 'cache-decorator',
           operation: 'method_cached',
-          namespace,
-          method: methodName,
-          cacheKey,
-          hit: true
+          metadata: {
+            namespace,
+            method: methodName,
+            cacheKey,
+            hit: true
+          }
         })
 
         return result
@@ -55,9 +57,11 @@ export function Cached(options: CacheOptions = {}) {
         AppLogger.error('Cache decorator failed, executing method directly', {
           service: 'cache-decorator',
           operation: 'cache_decorator_error',
-          namespace,
-          method: methodName,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            namespace,
+            method: methodName,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
 
         // Fallback to direct method execution
@@ -93,17 +97,21 @@ export function CacheInvalidate(options: { pattern?: string; keys?: string[] } =
         AppLogger.debug('Cache invalidated after method execution', {
           service: 'cache-decorator',
           operation: 'cache_invalidated',
-          method: propertyKey,
-          keys: options.keys,
-          pattern: options.pattern
+          metadata: {
+            method: propertyKey,
+            keys: options.keys,
+            pattern: options.pattern
+          }
         })
 
       } catch (error) {
         AppLogger.error('Cache invalidation failed', {
           service: 'cache-decorator',
           operation: 'cache_invalidation_error',
-          method: propertyKey,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            method: propertyKey,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
       }
 
@@ -173,9 +181,11 @@ export class CacheUtils {
     AppLogger.debug('API response cached', {
       service: 'cache-utils',
       operation: 'api_response_cached',
-      key,
-      status,
-      ttl
+      metadata: {
+        key,
+        status,
+        ttl
+      }
     })
   }
 
@@ -194,9 +204,11 @@ export class CacheUtils {
     AppLogger.debug('Reddit response cached', {
       service: 'cache-utils',
       operation: 'reddit_response_cached',
-      subreddit,
-      timeRange,
-      key
+      metadata: {
+        subreddit,
+        timeRange,
+        key
+      }
     })
   }
 
@@ -222,10 +234,12 @@ export class CacheUtils {
     AppLogger.debug('OpenAI response cached', {
       service: 'cache-utils',
       operation: 'openai_response_cached',
-      model,
-      tokenCount,
-      ttl,
-      key
+      metadata: {
+        model,
+        tokenCount,
+        ttl,
+        key
+      }
     })
   }
 
@@ -244,9 +258,11 @@ export class CacheUtils {
     AppLogger.debug('Analysis result cached', {
       service: 'cache-utils',
       operation: 'analysis_result_cached',
-      analysisId,
-      stage,
-      ttl
+      metadata: {
+        analysisId,
+        stage,
+        ttl
+      }
     })
   }
 
@@ -277,7 +293,9 @@ export class CacheUtils {
     AppLogger.debug('Analysis cache invalidated', {
       service: 'cache-utils',
       operation: 'analysis_cache_invalidated',
-      analysisId
+      metadata: {
+        analysisId
+      }
     })
   }
 
@@ -313,7 +331,9 @@ export class CacheWarmer {
     AppLogger.info('Starting Reddit cache warming', {
       service: 'cache-warmer',
       operation: 'reddit_cache_warming',
-      subredditCount: subreddits.length
+      metadata: {
+        subredditCount: subreddits.length
+      }
     })
 
     // This would be implemented with actual Reddit API calls
@@ -322,7 +342,9 @@ export class CacheWarmer {
       AppLogger.debug('Would warm Reddit cache', {
         service: 'cache-warmer',
         operation: 'reddit_cache_warm',
-        subreddit
+        metadata: {
+          subreddit
+        }
       })
     }
   }
@@ -334,7 +356,9 @@ export class CacheWarmer {
     AppLogger.info('Starting AI cache warming', {
       service: 'cache-warmer',
       operation: 'ai_cache_warming',
-      promptCount: commonPrompts.length
+      metadata: {
+        promptCount: commonPrompts.length
+      }
     })
 
     // This would be implemented with actual AI API calls
@@ -343,7 +367,9 @@ export class CacheWarmer {
       AppLogger.debug('Would warm AI cache', {
         service: 'cache-warmer',
         operation: 'ai_cache_warm',
-        promptLength: prompt.length
+        metadata: {
+          promptLength: prompt.length
+        }
       })
     }
   }

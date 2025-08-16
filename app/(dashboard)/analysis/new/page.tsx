@@ -184,6 +184,7 @@ export default function NewAnalysisPage() {
                     subreddits: configuration.subreddits || [],
                     timeRange: configuration.timeRange || 30,
                     keywords: configuration.keywords || { predefined: [], custom: [] },
+                    commentAnalysisEnabled: configuration.commentAnalysisEnabled || false,
                     name: configuration.name || ''
                   }}
                   className="mb-6"

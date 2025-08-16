@@ -96,7 +96,7 @@ export function ReportHeader({
                 Generated
               </h3>
               <p className={`${REPORT_BRANDING.typography.body} text-gray-900 dark:text-gray-100`}>
-                {formatDate(report.metadata.generatedAt)}
+                {formatDate(report.createdAt || new Date())}
               </p>
             </div>
             

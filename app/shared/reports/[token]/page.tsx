@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ReportSharingService, PublicReportAccess } from '@/lib/services/report-sharing.service'
 import { AppLogger } from '@/lib/observability/logger'
@@ -22,13 +22,7 @@ export default function SharedReportPage() {
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (shareToken) {
-      loadSharedReport()
-    }
-  }, [shareToken])
-
-  const loadSharedReport = async (providedPassword?: string) => {
+  const loadSharedReport = useCallback(async (providedPassword?: string) => {
     try {
       setLoading(true)
       setError(null)
@@ -70,7 +64,7 @@ export default function SharedReportPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
       AppLogger.error('Failed to load shared report', {
-        component: 'shared-report-page',
+        service: 'shared-report-page',
         operation: 'load_shared_report_error',
         metadata: {
           shareToken,
@@ -80,7 +74,13 @@ export default function SharedReportPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [shareToken, password])
+
+  useEffect(() => {
+    if (shareToken) {
+      loadSharedReport()
+    }
+  }, [shareToken, loadSharedReport])
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault()

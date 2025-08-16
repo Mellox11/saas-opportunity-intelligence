@@ -45,7 +45,9 @@ export class CircuitBreaker<T> {
           AppLogger.info('Circuit breaker executing fallback', {
             service: 'circuit-breaker',
             operation: 'fallback_execution',
-            circuitName: this.config.name
+            metadata: {
+              circuitName: this.config.name
+            }
           })
           return await fallback()
         }
@@ -76,8 +78,10 @@ export class CircuitBreaker<T> {
         AppLogger.info('Circuit breaker executing fallback after failure', {
           service: 'circuit-breaker',
           operation: 'fallback_after_failure',
-          circuitName: this.config.name,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            circuitName: this.config.name,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
         return await fallback()
       }
@@ -99,9 +103,11 @@ export class CircuitBreaker<T> {
     AppLogger.debug('Circuit breaker success recorded', {
       service: 'circuit-breaker',
       operation: 'success',
-      circuitName: this.config.name,
-      state: this.state,
-      metrics: this.getMetrics()
+      metadata: {
+        circuitName: this.config.name,
+        state: this.state,
+        metrics: this.getMetrics()
+      }
     })
   }
 
@@ -112,10 +118,12 @@ export class CircuitBreaker<T> {
     AppLogger.warn('Circuit breaker failure recorded', {
       service: 'circuit-breaker',
       operation: 'failure',
-      circuitName: this.config.name,
-      error: error.message,
-      state: this.state,
-      metrics: this.getMetrics()
+      metadata: {
+        circuitName: this.config.name,
+        error: error.message,
+        state: this.state,
+        metrics: this.getMetrics()
+      }
     })
 
     if (this.state === CircuitState.HALF_OPEN) {
@@ -146,10 +154,12 @@ export class CircuitBreaker<T> {
       service: 'circuit-breaker',
       operation: 'circuit_opened',
       businessEvent: 'system_reliability',
-      circuitName: this.config.name,
-      reason,
-      nextAttempt: new Date(this.nextAttempt).toISOString(),
-      metrics: this.getMetrics()
+      metadata: {
+        circuitName: this.config.name,
+        reason,
+        nextAttempt: new Date(this.nextAttempt).toISOString(),
+        metrics: this.getMetrics()
+      }
     })
   }
 
@@ -157,9 +167,11 @@ export class CircuitBreaker<T> {
     AppLogger.warn('Circuit breaker blocked request', {
       service: 'circuit-breaker',
       operation: 'request_blocked',
-      circuitName: this.config.name,
-      state: this.state,
-      nextAttempt: new Date(this.nextAttempt).toISOString()
+      metadata: {
+        circuitName: this.config.name,
+        state: this.state,
+        nextAttempt: new Date(this.nextAttempt).toISOString()
+      }
     })
   }
 
@@ -167,11 +179,13 @@ export class CircuitBreaker<T> {
     AppLogger.debug('Circuit breaker state change', {
       service: 'circuit-breaker',
       operation: 'state_change',
-      circuitName: this.config.name,
-      previousState: this.state,
-      newState,
-      reason,
-      timestamp: new Date().toISOString()
+      metadata: {
+        circuitName: this.config.name,
+        previousState: this.state,
+        newState,
+        reason,
+        timestamp: new Date().toISOString()
+      }
     })
   }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { ReportAnalytics, UserAnalytics } from '@/lib/services/report-analytics.service'
 import { AppLogger } from '@/lib/observability/logger'
 
@@ -26,11 +26,7 @@ export function AnalyticsDashboard({
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'performance' | 'usage' | 'sharing'>('overview')
 
-  useEffect(() => {
-    loadAnalytics()
-  }, [reportId, showUserAnalytics])
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -71,7 +67,7 @@ export function AnalyticsDashboard({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analytics')
       AppLogger.error('Failed to load analytics', {
-        component: 'analytics-dashboard',
+        service: 'analytics-dashboard',
         operation: 'load_analytics_error',
         metadata: {
           reportId,
@@ -82,7 +78,11 @@ export function AnalyticsDashboard({
     } finally {
       setLoading(false)
     }
-  }
+  }, [reportId, showUserAnalytics])
+
+  useEffect(() => {
+    loadAnalytics()
+  }, [loadAnalytics])
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
@@ -210,7 +210,7 @@ export function AnalyticsDashboard({
               </div>
             </div>
             <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {formatNumber(isReport ? analytics.totalDownloads || 0 : (analytics as UserAnalytics).totalViews)}
+              {formatNumber(isReport ? (analytics as any).totalDownloads || 0 : (analytics as UserAnalytics).totalViews)}
             </div>
             {isReport && reportAnalytics?.exportAnalytics && (
               <p className="text-sm text-gray-500 dark:text-gray-400">

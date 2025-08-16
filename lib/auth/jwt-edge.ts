@@ -57,7 +57,7 @@ export class EdgeJWT {
       return decodedPayload
       
     } catch (error) {
-      console.log(`❌ [EdgeJWT] Verification error: ${error.message}`)
+      console.log(`❌ [EdgeJWT] Verification error: ${error instanceof Error ? error.message : 'Unknown error'}`)
       return null
     }
   }
@@ -87,7 +87,7 @@ export class EdgeJWT {
       
       return await crypto.subtle.verify('HMAC', key, signatureBuffer, dataBuffer)
     } catch (error) {
-      console.log(`❌ [EdgeJWT] Signature verification error: ${error.message}`)
+      console.log(`❌ [EdgeJWT] Signature verification error: ${error instanceof Error ? error.message : 'Unknown error'}`)
       return false
     }
   }

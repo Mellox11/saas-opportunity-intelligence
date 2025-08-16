@@ -3,7 +3,7 @@
 import React, { useState } from 'react'
 import { EnhancedOpportunity } from '@/lib/types/report'
 import { REPORT_BRANDING } from '@/lib/types/report'
-import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 /**
  * Enhanced opportunity display with detailed information
@@ -138,8 +138,8 @@ export function OpportunityDetailCard({
             </h4>
             {showInteractiveElements && (
               expandedSections.has('solution') ? 
-                <ChevronUpIcon className="w-5 h-5 text-gray-400" /> : 
-                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                <ChevronUp className="w-5 h-5 text-gray-400" /> : 
+                <ChevronDown className="w-5 h-5 text-gray-400" />
             )}
           </button>
 
@@ -213,8 +213,8 @@ export function OpportunityDetailCard({
             </h4>
             {showInteractiveElements && (
               expandedSections.has('revenue') ? 
-                <ChevronUpIcon className="w-5 h-5 text-gray-400" /> : 
-                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                <ChevronUp className="w-5 h-5 text-gray-400" /> : 
+                <ChevronDown className="w-5 h-5 text-gray-400" />
             )}
           </button>
 
@@ -293,8 +293,8 @@ export function OpportunityDetailCard({
             </h4>
             {showInteractiveElements && (
               expandedSections.has('technical') ? 
-                <ChevronUpIcon className="w-5 h-5 text-gray-400" /> : 
-                <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                <ChevronUp className="w-5 h-5 text-gray-400" /> : 
+                <ChevronDown className="w-5 h-5 text-gray-400" />
             )}
           </button>
 

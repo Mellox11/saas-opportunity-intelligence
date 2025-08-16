@@ -62,11 +62,13 @@ export class CacheManager {
     AppLogger.info('Cache manager initialized', {
       service: 'cache-manager',
       operation: 'initialization',
-      config: {
-        hasRedis: !!config.redisUrl,
-        defaultTtl: config.defaultTtl,
-        maxSize: config.maxSize,
-        keyPrefix: config.keyPrefix
+      metadata: {
+        config: {
+          hasRedis: !!config.redisUrl,
+          defaultTtl: config.defaultTtl,
+          maxSize: config.maxSize,
+          keyPrefix: config.keyPrefix
+        }
       }
     })
   }
@@ -77,7 +79,6 @@ export class CacheManager {
   private initializeRedis(): void {
     try {
       this.redis = new Redis(this.config.redisUrl!, {
-        retryDelayOnFailover: 100,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
         keepAlive: 30000
@@ -94,7 +95,9 @@ export class CacheManager {
         AppLogger.error('Redis cache error', {
           service: 'cache-manager',
           operation: 'redis_error',
-          error: error.message
+          metadata: {
+            error: error.message
+          }
         })
       })
 
@@ -109,7 +112,9 @@ export class CacheManager {
       AppLogger.error('Failed to initialize Redis', {
         service: 'cache-manager',
         operation: 'redis_init_failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }
@@ -143,8 +148,10 @@ export class CacheManager {
         AppLogger.debug('Cache hit (memory)', {
           service: 'cache-manager',
           operation: 'cache_hit',
-          key: fullKey,
-          source: 'memory'
+          metadata: {
+            key: fullKey,
+            source: 'memory'
+          }
         })
         
         return memoryEntry.value
@@ -157,7 +164,9 @@ export class CacheManager {
       AppLogger.debug('Cache miss', {
         service: 'cache-manager',
         operation: 'cache_miss',
-        key: fullKey
+        metadata: {
+          key: fullKey
+        }
       })
       
       return null
@@ -166,8 +175,10 @@ export class CacheManager {
       AppLogger.error('Cache get failed', {
         service: 'cache-manager',
         operation: 'cache_get_error',
-        key: fullKey,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          key: fullKey,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
       return null
     }
@@ -198,17 +209,21 @@ export class CacheManager {
       AppLogger.debug('Cache set', {
         service: 'cache-manager',
         operation: 'cache_set',
-        key: fullKey,
-        size,
-        ttl: finalTtl
+        metadata: {
+          key: fullKey,
+          size,
+          ttl: finalTtl
+        }
       })
 
     } catch (error) {
       AppLogger.error('Cache set failed', {
         service: 'cache-manager',
         operation: 'cache_set_error',
-        key: fullKey,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          key: fullKey,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }
@@ -234,15 +249,19 @@ export class CacheManager {
       AppLogger.debug('Cache delete', {
         service: 'cache-manager',
         operation: 'cache_delete',
-        key: fullKey
+        metadata: {
+          key: fullKey
+        }
       })
 
     } catch (error) {
       AppLogger.error('Cache delete failed', {
         service: 'cache-manager',
         operation: 'cache_delete_error',
-        key: fullKey,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          key: fullKey,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }
@@ -275,7 +294,9 @@ export class CacheManager {
       AppLogger.error('Cache clear failed', {
         service: 'cache-manager',
         operation: 'cache_clear_error',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }
@@ -351,8 +372,10 @@ export class CacheManager {
       AppLogger.warn('Redis get failed, falling back to memory cache', {
         service: 'cache-manager',
         operation: 'redis_get_failed',
-        key,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          key,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
       return null
     }
@@ -370,8 +393,10 @@ export class CacheManager {
       AppLogger.warn('Redis set failed', {
         service: 'cache-manager',
         operation: 'redis_set_failed',
-        key,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          key,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }
@@ -441,7 +466,9 @@ export class CacheManager {
       AppLogger.debug('Expired cache entries removed', {
         service: 'cache-manager',
         operation: 'expired_entries_removed',
-        removedCount
+        metadata: {
+          removedCount
+        }
       })
     }
   }
@@ -469,8 +496,10 @@ export class CacheManager {
     AppLogger.debug('LRU cache entries removed', {
       service: 'cache-manager',
       operation: 'lru_entries_removed',
-      removedCount,
-      freedSize
+      metadata: {
+        removedCount,
+        freedSize
+      }
     })
   }
 
@@ -508,7 +537,9 @@ export class CacheManager {
     AppLogger.debug('Cache cleanup interval started', {
       service: 'cache-manager',
       operation: 'cleanup_started',
-      interval: '60s'
+      metadata: {
+        interval: '60s'
+      }
     })
   }
 
@@ -528,7 +559,9 @@ export class CacheManager {
     AppLogger.info('Cache manager destroyed', {
       service: 'cache-manager',
       operation: 'destroyed',
-      finalMetrics: this.getMetrics()
+      metadata: {
+        finalMetrics: this.getMetrics()
+      }
     })
   }
 }

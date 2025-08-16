@@ -27,10 +27,9 @@ export class LogoutService {
     const { userId, sessionToken, clearAllUserSessions = false, correlationId } = options
     
     try {
-      AppLogger.auth('Starting logout process', {
+      AppLogger.info('Starting logout process', {
         service: 'LogoutService',
         operation: 'logout',
-        authEvent: 'logout_initiated',
         correlationId,
         metadata: { 
           hasUserId: !!userId, 
@@ -48,10 +47,9 @@ export class LogoutService {
         })
         sessionsDeleted += deletedSessions.count
 
-        AppLogger.auth('Session deleted by token', {
+        AppLogger.info('Session deleted by token', {
           service: 'LogoutService',
           operation: 'delete_session',
-          authEvent: 'session_deleted',
           correlationId,
           metadata: { sessionToken: sessionToken.substring(0, 10) + '...', count: deletedSessions.count }
         })
@@ -64,20 +62,17 @@ export class LogoutService {
         })
         sessionsDeleted += deletedSessions.count
 
-        AppLogger.auth('All user sessions deleted', {
+        AppLogger.info('All user sessions deleted', {
           service: 'LogoutService',
           operation: 'delete_all_sessions',
-          authEvent: 'all_sessions_deleted',
           correlationId,
           metadata: { userId, count: deletedSessions.count }
         })
       }
 
-      AppLogger.auth('Logout completed successfully', {
+      AppLogger.info('Logout completed successfully', {
         service: 'LogoutService',
         operation: 'logout',
-        authEvent: 'logout_success',
-        success: true,
         correlationId,
         metadata: { sessionsCleared: sessionsDeleted }
       })
@@ -87,14 +82,15 @@ export class LogoutService {
         sessionsCleared: sessionsDeleted
       }
     } catch (error) {
-      AppLogger.auth('Logout failed', {
+      AppLogger.error('Logout failed', {
         service: 'LogoutService',
         operation: 'logout',
-        authEvent: 'logout_failed',
-        success: false,
         correlationId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        metadata: { userId, hasSessionToken: !!sessionToken }
+        metadata: { 
+          userId, 
+          hasSessionToken: !!sessionToken,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
 
       return {
@@ -178,7 +174,9 @@ export class LogoutService {
             service: 'LogoutService',
             operation: 'validate_logout',
             correlationId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            metadata: {
+              error: error instanceof Error ? error.message : 'Unknown error'
+            }
           })
         }
       }
@@ -192,7 +190,9 @@ export class LogoutService {
       AppLogger.error('Logout request validation failed', {
         service: 'LogoutService',
         operation: 'validate_logout',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
       
       return {}

@@ -58,8 +58,10 @@ export class CircuitBreakerRegistry {
     AppLogger.info('Circuit breakers initialized', {
       service: 'circuit-breaker-registry',
       operation: 'initialization',
-      breakerCount: this.breakers.size,
-      breakers: Array.from(this.breakers.keys())
+      metadata: {
+        breakerCount: this.breakers.size,
+        breakers: Array.from(this.breakers.keys())
+      }
     })
   }
 
@@ -82,8 +84,10 @@ export class CircuitBreakerRegistry {
     AppLogger.info('Circuit breaker created', {
       service: 'circuit-breaker-registry',
       operation: 'breaker_created',
-      breakerName: config.name,
-      config
+      metadata: {
+        breakerName: config.name,
+        config
+      }
     })
 
     return breaker
@@ -95,7 +99,9 @@ export class CircuitBreakerRegistry {
       AppLogger.info('Circuit breaker removed', {
         service: 'circuit-breaker-registry',
         operation: 'breaker_removed',
-        breakerName: name
+        metadata: {
+          breakerName: name
+        }
       })
     }
     return removed
@@ -133,7 +139,9 @@ export class CircuitBreakerRegistry {
     AppLogger.info('All circuit breakers reset', {
       service: 'circuit-breaker-registry',
       operation: 'reset_all',
-      breakerCount: this.breakers.size
+      metadata: {
+        breakerCount: this.breakers.size
+      }
     })
   }
 
@@ -144,7 +152,9 @@ export class CircuitBreakerRegistry {
       AppLogger.info('Circuit breaker reset', {
         service: 'circuit-breaker-registry',
         operation: 'reset_breaker',
-        breakerName: name
+        metadata: {
+          breakerName: name
+        }
       })
       return true
     }
@@ -160,7 +170,9 @@ export class CircuitBreakerRegistry {
     AppLogger.info('Circuit breaker monitoring started', {
       service: 'circuit-breaker-registry',
       operation: 'monitoring_started',
-      interval: '30s'
+      metadata: {
+        interval: '30s'
+      }
     })
   }
 
@@ -186,10 +198,12 @@ export class CircuitBreakerRegistry {
         service: 'circuit-breaker-registry',
         operation: 'health_check_alert',
         businessEvent: 'system_health',
-        unhealthyBreakers,
-        openBreakers,
-        totalBreakers: this.breakers.size,
-        timestamp: new Date().toISOString()
+        metadata: {
+          unhealthyBreakers,
+          openBreakers,
+          totalBreakers: this.breakers.size,
+          timestamp: new Date().toISOString()
+        }
       })
     }
   }

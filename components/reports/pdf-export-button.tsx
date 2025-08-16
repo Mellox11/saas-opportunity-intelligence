@@ -73,7 +73,7 @@ export function PDFExportButton({
 
     try {
       AppLogger.info('Starting PDF export', {
-        component: 'pdf-export-button',
+        service: 'pdf-export-button',
         operation: 'export_pdf',
         metadata: {
           reportId: report.id,
@@ -139,7 +139,7 @@ export function PDFExportButton({
       window.URL.revokeObjectURL(url)
 
       AppLogger.info('PDF export completed', {
-        component: 'pdf-export-button',
+        service: 'pdf-export-button',
         operation: 'export_pdf_completed',
         metadata: {
           reportId: report.id,
@@ -151,7 +151,7 @@ export function PDFExportButton({
 
     } catch (error) {
       AppLogger.error('PDF export failed', {
-        component: 'pdf-export-button',
+        service: 'pdf-export-button',
         operation: 'export_pdf_error',
         metadata: {
           reportId: report.id,

@@ -404,19 +404,19 @@ export default function AnalysisResultsPage() {
                           <div className="flex-1">
                             <h3 className="text-white font-medium mb-1">{item.title}</h3>
                             <div className="flex items-center gap-4 text-sm text-gray-400">
-                              <span>r/{item.subreddit}</span>
+                              <span>r/{'subreddit' in item ? item.subreddit : 'unknown'}</span>
                               <span className="flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3" />
-                                {item.score} upvotes
+                                {'score' in item ? item.score : item.opportunityScore || 0} upvotes
                               </span>
                               <span className="flex items-center gap-1">
                                 <MessageSquare className="h-3 w-3" />
-                                {item.numComments} comments
+                                {'numComments' in item ? item.numComments : 0} comments
                               </span>
                             </div>
                           </div>
                           <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 border">
-                            {item.score}
+                            {'score' in item ? item.score : item.opportunityScore || 0}
                           </Badge>
                         </div>
 
@@ -426,7 +426,7 @@ export default function AnalysisResultsPage() {
                             <div>
                               <p className="text-sm text-gray-400 mb-2">Post Content:</p>
                               <p className="text-sm text-gray-300">
-                                {item.content ? item.content.substring(0, 300) + (item.content.length > 300 ? '...' : '') : 'No content preview available'}
+                                {'content' in item && item.content ? item.content.substring(0, 300) + (item.content.length > 300 ? '...' : '') : 'No content preview available'}
                               </p>
                             </div>
 
@@ -438,9 +438,10 @@ export default function AnalysisResultsPage() {
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   // Check if permalink already includes the domain
-                                  const url = item.permalink.startsWith('http') 
-                                    ? item.permalink 
-                                    : `https://reddit.com${item.permalink}`
+                                  const permalink = 'permalink' in item ? item.permalink : ''
+                                  const url = permalink.startsWith('http') 
+                                    ? permalink 
+                                    : `https://reddit.com${permalink}`
                                   window.open(url, '_blank')
                                 }}
                               >
@@ -458,15 +459,15 @@ export default function AnalysisResultsPage() {
                           <div className="flex-1">
                             <h3 className="text-white font-medium mb-1">{item.title}</h3>
                             <div className="flex items-center gap-4 text-sm text-gray-400">
-                              <span>r/{item.sourcePost?.subreddit}</span>
+                              <span>r/{'sourcePost' in item && item.sourcePost ? item.sourcePost.subreddit : 'unknown'}</span>
                               <span>•</span>
-                              <span>{item.sourcePost?.numComments || 0} comments</span>
+                              <span>{'sourcePost' in item && item.sourcePost ? item.sourcePost.numComments : 0} comments</span>
                               <span>•</span>
-                              <span>Score: {item.sourcePost?.score || 0}</span>
+                              <span>Score: {'sourcePost' in item && item.sourcePost ? item.sourcePost.score : 0}</span>
                             </div>
                           </div>
-                          <Badge className={`${getScoreBadgeColor(item.opportunityScore)} border`}>
-                            Score: {item.opportunityScore}
+                          <Badge className={`${getScoreBadgeColor('opportunityScore' in item ? item.opportunityScore : 0)} border`}>
+                            Score: {'opportunityScore' in item ? item.opportunityScore : 0}
                           </Badge>
                         </div>
 
@@ -474,26 +475,26 @@ export default function AnalysisResultsPage() {
                         <div className="flex gap-6 mb-3">
                           <div className="text-sm">
                             <span className="text-gray-500">Urgency:</span>
-                            <span className={`ml-2 font-medium ${getScoreColor(item.urgencyScore)}`}>
-                              {item.urgencyScore}
+                            <span className={`ml-2 font-medium ${getScoreColor('urgencyScore' in item ? item.urgencyScore : 0)}`}>
+                              {'urgencyScore' in item ? item.urgencyScore : 0}
                             </span>
                           </div>
                           <div className="text-sm">
                             <span className="text-gray-500">Market:</span>
-                            <span className={`ml-2 font-medium ${getScoreColor(item.marketSignalsScore)}`}>
-                              {item.marketSignalsScore}
+                            <span className={`ml-2 font-medium ${getScoreColor('marketSignalsScore' in item ? item.marketSignalsScore : 0)}`}>
+                              {'marketSignalsScore' in item ? item.marketSignalsScore : 0}
                             </span>
                           </div>
                           <div className="text-sm">
                             <span className="text-gray-500">Feasibility:</span>
-                            <span className={`ml-2 font-medium ${getScoreColor(item.feasibilityScore)}`}>
-                              {item.feasibilityScore}
+                            <span className={`ml-2 font-medium ${getScoreColor('feasibilityScore' in item ? item.feasibilityScore : 0)}`}>
+                              {'feasibilityScore' in item ? item.feasibilityScore : 0}
                             </span>
                           </div>
                           <div className="text-sm">
                             <span className="text-gray-500">Confidence:</span>
-                            <span className={`ml-2 font-medium ${getScoreColor(item.confidenceScore)}`}>
-                              {item.confidenceScore}
+                            <span className={`ml-2 font-medium ${getScoreColor('confidenceScore' in item ? item.confidenceScore : 0)}`}>
+                              {'confidenceScore' in item ? item.confidenceScore : 0}
                             </span>
                           </div>
                         </div>
@@ -502,10 +503,10 @@ export default function AnalysisResultsPage() {
                         {selectedOpp === item.id && (
                           <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
                             <div>
-                              <p className="text-sm text-gray-300">{item.problemStatement}</p>
+                              <p className="text-sm text-gray-300">{'problemStatement' in item ? item.problemStatement : 'No problem statement available'}</p>
                             </div>
                             
-                            {item.evidence && item.evidence.length > 0 && (
+                            {'evidence' in item && item.evidence && item.evidence.length > 0 && (
                               <div>
                                 <p className="text-sm text-gray-400 mb-2">Evidence:</p>
                                 <div className="flex flex-wrap gap-2">
@@ -519,14 +520,16 @@ export default function AnalysisResultsPage() {
                             )}
 
                             <div className="flex gap-3 pt-2">
-                              {item.sourcePost && (
+                              {'sourcePost' in item && item.sourcePost && (
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="border-gray-600 text-gray-300 hover:bg-gray-800"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    window.open(item.sourcePost!.permalink, '_blank')
+                                    if ('sourcePost' in item && item.sourcePost) {
+                                      window.open(item.sourcePost.permalink, '_blank')
+                                    }
                                   }}
                                 >
                                   <ExternalLink className="mr-2 h-3 w-3" />
