@@ -31,8 +31,8 @@ interface RateLimitResult {
 export class RateLimiter {
   private store: RateLimitStore = {}
   private windowMs: number
-  private maxRequests: number
-  private name: string
+  public maxRequests: number
+  public name: string
   private skipSuccessfulRequests: boolean
   private skipFailedRequests: boolean
   

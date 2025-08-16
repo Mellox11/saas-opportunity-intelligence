@@ -69,6 +69,8 @@ export class QueueMonitorService {
     const now = Date.now()
     
     for (const [queueName, queue] of Object.entries(queues)) {
+      if (!queue) continue
+      
       try {
         const active = await queue.getActive()
         const stuckJobs = active.filter(job => 
@@ -97,6 +99,8 @@ export class QueueMonitorService {
     const cleanupAge = 24 * 60 * 60 * 1000 // 24 hours
     
     for (const [queueName, queue] of Object.entries(queues)) {
+      if (!queue) continue
+      
       try {
         // Clean completed jobs older than 24 hours
         await queue.clean(cleanupAge, 'completed')
@@ -114,6 +118,8 @@ export class QueueMonitorService {
     const metrics: Record<string, any> = {}
     
     for (const [queueName, queue] of Object.entries(queues)) {
+      if (!queue) continue
+      
       try {
         const [waiting, active, completed, failed] = await Promise.all([
           queue.getWaiting(),
@@ -156,7 +162,7 @@ export class QueueMonitorService {
    */
   async pauseAllQueues(): Promise<void> {
     console.log('Pausing all queues...')
-    await Promise.all(Object.values(queues).map(queue => queue.pause()))
+    await Promise.all(Object.values(queues).filter(queue => queue !== null).map(queue => queue!.pause()))
     console.log('All queues paused')
   }
   
@@ -165,7 +171,7 @@ export class QueueMonitorService {
    */
   async resumeAllQueues(): Promise<void> {
     console.log('Resuming all queues...')
-    await Promise.all(Object.values(queues).map(queue => queue.resume()))
+    await Promise.all(Object.values(queues).filter(queue => queue !== null).map(queue => queue!.resume()))
     console.log('All queues resumed')
   }
 }

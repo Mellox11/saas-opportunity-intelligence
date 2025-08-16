@@ -246,14 +246,17 @@ export class MarketAnalysisService {
     const totalOpportunities = opportunities.length
     
     return Array.from(industryMap.entries())
-      .map(([vertical, data]) => ({
-        vertical,
-        count: data.count,
-        percentage: Math.round((data.count / totalOpportunities) * 100),
-        avgScore: Math.round(data.totalScore / data.count),
-        growth: this.calculateIndustryGrowth(data.scores), // Based on score variance
-        maturity: this.determineIndustryMaturity(vertical, data.avgScore) as 'emerging' | 'growing' | 'mature'
-      }))
+      .map(([vertical, data]) => {
+        const avgScore = Math.round(data.totalScore / data.count)
+        return {
+          vertical,
+          count: data.count,
+          percentage: Math.round((data.count / totalOpportunities) * 100),
+          avgScore,
+          growth: this.calculateIndustryGrowth(data.scores), // Based on score variance
+          maturity: this.determineIndustryMaturity(vertical, avgScore) as 'emerging' | 'growing' | 'mature'
+        }
+      })
       .sort((a, b) => b.count - a.count)
   }
 

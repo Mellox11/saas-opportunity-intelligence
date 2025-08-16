@@ -304,8 +304,10 @@ export class AnalysisOrchestrationService {
     } catch (error) {
       // Fallback: query without comments if there are schema issues
       logger.warn('Failed to query with comments in orchestration, falling back to posts only', { 
-        analysisId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          analysisId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
       posts = await prisma.redditPost.findMany({
         where: {

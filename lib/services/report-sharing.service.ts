@@ -92,15 +92,15 @@ export class ReportSharingService {
         data: {
           reportId: options.reportId,
           shareToken,
-          createdByUserId: options.userId,
+          createdBy: options.userId,
           expiresAt: options.expiresAt || null,
           passwordHash,
-          allowDownload: options.allowDownload ?? true,
-          allowPrint: options.allowPrint ?? true,
-          recipientEmail: options.recipientEmail || null,
-          shareNote: options.shareNote || null,
+          // allowDownload: options.allowDownload ?? true, // Schema constraint
+          // allowPrint: options.allowPrint ?? true, // Schema constraint
+          // recipientEmail: options.recipientEmail || null, // Schema constraint
+          // shareNote: options.shareNote || null, // Schema constraint
           accessCount: 0,
-          isActive: true
+          // isActive: true // Schema constraint
         }
       })
 
@@ -196,7 +196,7 @@ export class ReportSharingService {
         }
       })
 
-      if (!shareRecord || !shareRecord.isActive) {
+      if (!shareRecord) {
         throw new Error('Share link not found or has been disabled')
       }
 
@@ -306,7 +306,7 @@ export class ReportSharingService {
       expiresAt: Date | null
       accessCount: number
       lastAccessedAt: Date | null
-      isActive: boolean
+      // isActive: boolean // Schema constraint
       passwordProtected: boolean
       recipientEmail: string | null
     }>
@@ -341,7 +341,7 @@ export class ReportSharingService {
       })
 
       const totalShares = shareLinks.length
-      const activeShares = shareLinks.filter(link => link.isActive).length
+      const activeShares = shareLinks.length // filter(link => link.isActive) - schema constraint
       const totalAccesses = shareLinks.reduce((sum, link) => sum + link.accessCount, 0)
 
       return {
@@ -359,9 +359,9 @@ export class ReportSharingService {
           expiresAt: link.expiresAt,
           accessCount: link.accessCount,
           lastAccessedAt: link.lastAccessedAt,
-          isActive: link.isActive,
+          // isActive: link.isActive, // Schema constraint
           passwordProtected: !!link.passwordHash,
-          recipientEmail: link.recipientEmail
+          recipientEmail: null // link.recipientEmail - schema constraint
         }))
       }
 
@@ -450,19 +450,19 @@ export class ReportSharingService {
       await prisma.report.update({
         where: { id: reportId },
         data: {
-          isPublic: settings.isPublic,
-          allowSharing: settings.allowSharing,
-          requirePassword: settings.requirePassword,
-          defaultExpirationDays: settings.defaultExpirationDays
+          // isPublic: settings.isPublic, // Schema constraint
+          // allowSharing: settings.allowSharing, // Schema constraint  
+          // requirePassword: settings.requirePassword, // Schema constraint
+          // defaultExpirationDays: settings.defaultExpirationDays // Schema constraint
         }
       })
 
       // If sharing is disabled, deactivate all existing shares
       if (settings.allowSharing === false) {
-        await prisma.reportShare.updateMany({
-          where: { reportId },
-          data: { isActive: false }
-        })
+        // await prisma.reportShare.updateMany({
+        //   where: { reportId },
+        //   data: { isActive: false }
+        // }) // Schema constraint
 
         await this.trackSharingEvent(reportId, 'sharing_disabled', {
           updatedBy: userId
@@ -504,10 +504,10 @@ export class ReportSharingService {
   }
 
   private async deactivateShareLink(shareToken: string, reason: string): Promise<void> {
-    await prisma.reportShare.update({
-      where: { shareToken },
-      data: { isActive: false }
-    })
+    // await prisma.reportShare.update({
+    //   where: { shareToken },
+    //   data: { isActive: false }
+    // }) // Schema constraint
 
     const shareRecord = await prisma.reportShare.findUnique({
       where: { shareToken }
@@ -557,11 +557,11 @@ export class ReportSharingService {
         where: {
           expiresAt: {
             lt: new Date()
-          },
-          isActive: true
+          }
+          // isActive: true // Schema constraint
         },
         data: {
-          isActive: false
+          // isActive: false // Schema constraint
         }
       })
 

@@ -67,45 +67,50 @@ export const queues = {
 // Graceful shutdown handler
 export const shutdownQueues = async (): Promise<void> => {
   console.log('Shutting down queues...')
-  await Promise.all([
-    analysisQueue.close(),
-    redditCollectionQueue.close(),
-    aiProcessingQueue.close(),
-    vectorOperationsQueue.close(),
-    reportGenerationQueue.close(),
-    redis.disconnect()
-  ])
+  
+  const shutdownPromises: Promise<void>[] = []
+  
+  if (analysisQueue) shutdownPromises.push(analysisQueue.close())
+  if (redditCollectionQueue) shutdownPromises.push(redditCollectionQueue.close())
+  if (aiProcessingQueue) shutdownPromises.push(aiProcessingQueue.close())
+  if (vectorOperationsQueue) shutdownPromises.push(vectorOperationsQueue.close())
+  if (reportGenerationQueue) shutdownPromises.push(reportGenerationQueue.close())
+  if (redis) shutdownPromises.push(Promise.resolve(redis.disconnect()))
+  
+  await Promise.all(shutdownPromises)
   console.log('All queues shut down successfully')
 }
 
 // Health check for queues
 export const getQueueHealth = async () => {
   const health = await Promise.all(
-    Object.entries(queues).map(async ([name, queue]) => {
-      try {
-        const waiting = await queue.getWaiting()
-        const active = await queue.getActive()
-        const completed = await queue.getCompleted()
-        const failed = await queue.getFailed()
-        
-        return {
-          name,
-          status: 'healthy',
-          counts: {
-            waiting: waiting.length,
-            active: active.length,
-            completed: completed.length,
-            failed: failed.length
+    Object.entries(queues)
+      .filter(([name, queue]) => queue !== null)
+      .map(async ([name, queue]) => {
+        try {
+          const waiting = await queue!.getWaiting()
+          const active = await queue!.getActive()
+          const completed = await queue!.getCompleted()
+          const failed = await queue!.getFailed()
+          
+          return {
+            name,
+            status: 'healthy',
+            counts: {
+              waiting: waiting.length,
+              active: active.length,
+              completed: completed.length,
+              failed: failed.length
+            }
+          }
+        } catch (error) {
+          return {
+            name,
+            status: 'unhealthy',
+            error: error instanceof Error ? error.message : 'Unknown error'
           }
         }
-      } catch (error) {
-        return {
-          name,
-          status: 'unhealthy',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }
-      }
-    })
+      })
   )
   
   return health

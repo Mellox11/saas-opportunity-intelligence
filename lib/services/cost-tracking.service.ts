@@ -69,7 +69,7 @@ export class CostTrackingService {
         quantity: event.quantity,
         unitCost: event.unitCost,
         totalCost: event.totalCost,
-        eventData: event.eventData ? JSON.stringify(event.eventData) : null
+        eventData: event.eventData ? JSON.stringify(event.eventData) : undefined
       }
     })
     

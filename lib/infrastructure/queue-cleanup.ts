@@ -85,7 +85,9 @@ export class QueueCleanupService {
     AppLogger.info('Queue cleanup service stopped', {
       service: 'queue-cleanup',
       operation: 'service_stopped',
-      finalMetrics: this.metrics
+      metadata: {
+        finalMetrics: this.metrics
+      }
     })
   }
 
@@ -124,8 +126,10 @@ export class QueueCleanupService {
         service: 'queue-cleanup',
         operation: 'cleanup_completed',
         businessEvent: 'system_maintenance',
-        duration,
-        metrics: this.metrics
+        metadata: {
+          duration,
+          metrics: this.metrics
+        }
       })
 
       return { ...this.metrics }
@@ -137,8 +141,10 @@ export class QueueCleanupService {
       AppLogger.error('Queue cleanup failed', {
         service: 'queue-cleanup',
         operation: 'cleanup_failed',
-        error: errorMessage,
-        duration: Date.now() - startTime
+        metadata: {
+          error: errorMessage,
+          duration: Date.now() - startTime
+        }
       })
 
       throw error
@@ -169,10 +175,12 @@ export class QueueCleanupService {
       AppLogger.debug('Queue cleaned', {
         service: 'queue-cleanup',
         operation: 'queue_cleaned',
-        queueName,
-        waitingJobs: waiting.length,
-        failedJobs: failed.length,
-        stalledJobs: stalled.length
+        metadata: {
+          queueName,
+          waitingJobs: waiting.length,
+          failedJobs: failed.length,
+          stalledJobs: stalled.length
+        }
       })
 
     } catch (error) {
@@ -182,8 +190,10 @@ export class QueueCleanupService {
       AppLogger.error('Queue cleanup failed for specific queue', {
         service: 'queue-cleanup',
         operation: 'queue_cleanup_failed',
-        queueName,
-        error: errorMessage
+        metadata: {
+          queueName,
+          error: errorMessage
+        }
       })
     }
   }
@@ -211,9 +221,11 @@ export class QueueCleanupService {
         AppLogger.warn('Failed to remove stale job', {
           service: 'queue-cleanup',
           operation: 'stale_job_removal_failed',
-          queueName,
-          jobId: job.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            queueName,
+            jobId: job.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
       }
     }
@@ -222,8 +234,10 @@ export class QueueCleanupService {
       AppLogger.info('Stale jobs removed', {
         service: 'queue-cleanup',
         operation: 'stale_jobs_removed',
-        queueName,
-        removedCount
+        metadata: {
+          queueName,
+          removedCount
+        }
       })
     }
   }
@@ -248,9 +262,11 @@ export class QueueCleanupService {
           AppLogger.info('Failed job retried', {
             service: 'queue-cleanup',
             operation: 'job_retried',
-            queueName,
-            jobId: job.id,
-            attempt: attemptsMade + 1
+            metadata: {
+              queueName,
+              jobId: job.id,
+              attempt: attemptsMade + 1
+            }
           })
         } else {
           // Remove job after max retries
@@ -269,19 +285,23 @@ export class QueueCleanupService {
           AppLogger.warn('Failed job removed after max retries', {
             service: 'queue-cleanup',
             operation: 'failed_job_removed',
-            queueName,
-            jobId: job.id,
-            attempts: attemptsMade,
-            reason: job.failedReason
+            metadata: {
+              queueName,
+              jobId: job.id,
+              attempts: attemptsMade,
+              reason: job.failedReason
+            }
           })
         }
       } catch (error) {
         AppLogger.warn('Failed to handle failed job', {
           service: 'queue-cleanup',
           operation: 'failed_job_handling_error',
-          queueName,
-          jobId: job.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            queueName,
+            jobId: job.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
       }
     }
@@ -290,9 +310,11 @@ export class QueueCleanupService {
       AppLogger.info('Failed jobs processed', {
         service: 'queue-cleanup',
         operation: 'failed_jobs_processed',
-        queueName,
-        retriedCount,
-        removedCount
+        metadata: {
+          queueName,
+          retriedCount,
+          removedCount
+        }
       })
     }
   }
@@ -316,9 +338,11 @@ export class QueueCleanupService {
         AppLogger.warn('Failed to remove stalled job', {
           service: 'queue-cleanup',
           operation: 'stalled_job_removal_failed',
-          queueName,
-          jobId: job.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            queueName,
+            jobId: job.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
       }
     }
@@ -327,8 +351,10 @@ export class QueueCleanupService {
       AppLogger.info('Stalled jobs removed', {
         service: 'queue-cleanup',
         operation: 'stalled_jobs_removed',
-        queueName,
-        removedCount
+        metadata: {
+          queueName,
+          removedCount
+        }
       })
     }
   }
@@ -359,7 +385,9 @@ export class QueueCleanupService {
           service: 'queue-cleanup',
           operation: 'orphaned_analyses_handled',
           businessEvent: 'data_integrity',
-          count: orphanedAnalyses.length
+          metadata: {
+            count: orphanedAnalyses.length
+          }
         })
       }
 
@@ -370,7 +398,9 @@ export class QueueCleanupService {
       AppLogger.error('Failed to handle orphaned analyses', {
         service: 'queue-cleanup',
         operation: 'orphaned_analyses_error',
-        error: errorMessage
+        metadata: {
+          error: errorMessage
+        }
       })
     }
   }
@@ -387,8 +417,8 @@ export class QueueCleanupService {
         where: {
           OR: [
             { status: 'completed', completedAt: { lt: oldThreshold } },
-            { status: 'failed', updatedAt: { lt: oldThreshold } },
-            { status: 'cancelled', updatedAt: { lt: oldThreshold } }
+            { status: 'failed', createdAt: { lt: oldThreshold } },
+            { status: 'cancelled', createdAt: { lt: oldThreshold } }
           ]
         },
         select: { id: true }
@@ -427,8 +457,10 @@ export class QueueCleanupService {
           service: 'queue-cleanup',
           operation: 'old_analyses_cleanup',
           businessEvent: 'data_retention',
-          count: oldAnalyses.length,
-          olderThan: oldThreshold.toISOString()
+          metadata: {
+            count: oldAnalyses.length,
+            olderThan: oldThreshold.toISOString()
+          }
         })
       }
 
@@ -439,7 +471,9 @@ export class QueueCleanupService {
       AppLogger.error('Failed to cleanup old analyses', {
         service: 'queue-cleanup',
         operation: 'old_analyses_cleanup_error',
-        error: errorMessage
+        metadata: {
+          error: errorMessage
+        }
       })
     }
   }
@@ -453,20 +487,22 @@ export class QueueCleanupService {
         where: { id: analysisId },
         data: {
           status: 'failed',
-          errorDetails: {
+          errorDetails: JSON.stringify({
             type: 'JOB_CLEANUP',
             message: reason,
             timestamp: new Date().toISOString()
-          }
+          })
         }
       })
     } catch (error) {
       AppLogger.error('Failed to mark analysis as failed', {
         service: 'queue-cleanup',
         operation: 'mark_analysis_failed_error',
-        analysisId,
-        reason,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          analysisId,
+          reason,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }

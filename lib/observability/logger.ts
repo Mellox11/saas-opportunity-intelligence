@@ -92,7 +92,7 @@ export class AppLogger {
    * Log critical error (between error and fatal)
    */
   static critical(message: string, context: LogContext, error?: Error): void {
-    this.log(LogLevel.CRITICAL, message, context, error)
+    this.log(LogLevel.FATAL, message, context, error)
     
     // Send alert for critical errors in production
     if (EnvironmentConfig.isProduction) {

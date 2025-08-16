@@ -63,7 +63,7 @@ export class CommentAnalysisService {
       await this.trackCommentAnalysisCost(comment, processingTime)
 
       const metadata: CommentAnalysisMetadata = {
-        ...analysisResult,
+        ...analysisResult.object,
         processedAt: new Date().toISOString(),
         aiModel: 'gpt-4-turbo-preview',
         processingTimeMs: processingTime

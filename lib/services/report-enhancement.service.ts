@@ -107,12 +107,12 @@ export class ReportEnhancementService {
         topPersonas,
         marketSizeDistribution,
         recommendedActions: [
-          ...aiResponse.recommendedActions,
+          ...aiResponse.object.recommendedActions,
           ...this.generateDataDrivenRecommendations(dimensionalData)
         ].slice(0, 5),
         keyFindings: [
-          ...aiResponse.keyFindings,
-          ...aiResponse.marketInsights,
+          ...aiResponse.object.keyFindings,
+          ...aiResponse.object.marketInsights,
           ...this.generateQuantitativeFindings(opportunities, analysisMetadata)
         ].slice(0, 5),
         processingMetrics: {
@@ -199,10 +199,10 @@ export class ReportEnhancementService {
       await this.trackAICosts(processingTime, 'revenue_estimate')
 
       // Add competitive pricing analysis
-      const competitivePricing = this.generateCompetitivePricing(dimensions, aiResponse.pricingModel)
+      const competitivePricing = this.generateCompetitivePricing(dimensions, aiResponse.object.pricingModel)
 
       return {
-        ...aiResponse,
+        ...aiResponse.object,
         competitivePricing
       }
 
@@ -264,7 +264,7 @@ export class ReportEnhancementService {
       const processingTime = Date.now() - startTime
       await this.trackAICosts(processingTime, 'technical_assessment')
 
-      return aiResponse
+      return aiResponse.object
 
     } catch (error) {
       AppLogger.error('Technical assessment generation failed', {
@@ -329,7 +329,7 @@ export class ReportEnhancementService {
       const processingTime = Date.now() - startTime
       await this.trackAICosts(processingTime, 'solution_suggestion')
 
-      return aiResponse
+      return aiResponse.object
 
     } catch (error) {
       AppLogger.error('SaaS solution generation failed', {

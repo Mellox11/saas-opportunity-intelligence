@@ -68,7 +68,7 @@ export class DimensionalAnalysisService {
       await this.trackDimensionalAnalysisCost(processingTime)
 
       // Transform AI response to full dimensional analysis
-      const analysis = this.transformToAnalysis(aiResponse, processingTime)
+      const analysis = this.transformToAnalysis(aiResponse.object, processingTime)
 
       // Validate quality thresholds
       this.validateAnalysisQuality(analysis)

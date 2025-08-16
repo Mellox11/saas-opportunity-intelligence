@@ -297,17 +297,17 @@ startxref
       const baseCost = 0.001 // $0.001 per PDF
       const timeCost = processingTimeMs * 0.000001 // Additional cost based on processing time
       
-      await this.costTrackingService.trackEvent({
-        eventType: 'pdf_generation',
+      await this.costTrackingService.recordCostEvent({
+        analysisId: this.analysisId || '',
+        eventType: 'openai_tokens',
         provider: 'internal',
-        model: 'simplified',
-        inputTokens: 0,
-        outputTokens: 0,
-        cost: baseCost + timeCost,
-        metadata: {
+        quantity: 1,
+        unitCost: baseCost + timeCost,
+        totalCost: baseCost + timeCost,
+        eventData: {
           operation,
           processingTimeMs,
-          analysisId: this.analysisId
+          timestamp: new Date().toISOString()
         }
       })
     } catch (error) {

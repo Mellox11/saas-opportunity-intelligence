@@ -34,11 +34,7 @@ export const processReportGenerationJob = async (job: Job<ReportGenerationJobDat
     await prisma.analysis.update({
       where: { id: analysisId },
       data: {
-        metadata: {
-          ...((await prisma.analysis.findUnique({
-            where: { id: analysisId },
-            select: { metadata: true }
-          }))?.metadata || {}),
+        metadata: JSON.stringify({
           reportGenerated: true,
           reportStats: stats,
           topOpportunities: opportunities.slice(0, 10).map(opp => ({
@@ -47,7 +43,7 @@ export const processReportGenerationJob = async (job: Job<ReportGenerationJobDat
             score: opp.opportunityScore,
             subreddit: opp.sourcePost?.subreddit
           }))
-        }
+        })
       }
     })
     
@@ -79,10 +75,17 @@ async function generateAnalysisStats(analysisId: string) {
       where: { analysisId },
       _avg: { opportunityScore: true }
     }),
-    prisma.opportunity.groupBy({
-      by: ['sourcePost.subreddit'] as never[], // Type assertion needed for Prisma groupBy
+    // Get subreddit distribution manually since we can't groupBy on relation field
+    prisma.opportunity.findMany({
       where: { analysisId },
-      _count: { id: true }
+      include: { sourcePost: { select: { subreddit: true } } }
+    }).then(opportunities => {
+      const distribution = opportunities.reduce((acc, opp) => {
+        const subreddit = opp.sourcePost?.subreddit || 'unknown'
+        acc[subreddit] = (acc[subreddit] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+      return Object.entries(distribution).map(([subreddit, count]) => ({ subreddit, count }))
     })
   ])
   

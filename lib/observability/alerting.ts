@@ -153,7 +153,9 @@ export class AlertingService {
       AppLogger.error('Failed to send Slack alert', {
         service: 'alerting',
         operation: 'slack_alert_failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }
@@ -218,7 +220,9 @@ export class AlertingService {
       AppLogger.error('Failed to send Discord alert', {
         service: 'alerting',
         operation: 'discord_alert_failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }
@@ -260,7 +264,9 @@ export class AlertingService {
       AppLogger.error('Failed to send PagerDuty alert', {
         service: 'alerting',
         operation: 'pagerduty_alert_failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
     }
   }

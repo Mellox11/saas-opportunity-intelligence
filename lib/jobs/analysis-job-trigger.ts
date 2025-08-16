@@ -13,8 +13,10 @@ export async function triggerAnalysisJob(analysisId: string): Promise<void> {
       AppLogger.warn('Analysis queue not available, skipping job trigger', {
         service: 'analysis-job-trigger',
         operation: 'trigger_job',
-        analysisId,
-        reason: 'Queue not configured (Redis unavailable)'
+        metadata: {
+          analysisId,
+          reason: 'Queue not configured (Redis unavailable)'
+        }
       })
       
       // Update analysis to indicate manual processing needed
@@ -83,17 +85,21 @@ export async function triggerAnalysisJob(analysisId: string): Promise<void> {
       service: 'analysis-job-trigger',
       operation: 'job_triggered',
       businessEvent: 'analysis_started',
-      analysisId,
-      jobId: job.id.toString(),
-      userId: analysis.userId
+      metadata: {
+        analysisId,
+        jobId: job.id.toString(),
+        userId: analysis.userId
+      }
     })
     
   } catch (error) {
     AppLogger.error('Failed to trigger analysis job', {
       service: 'analysis-job-trigger',
       operation: 'trigger_job_error',
-      analysisId,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        analysisId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     })
     
     // Update analysis status to failed
@@ -102,15 +108,17 @@ export async function triggerAnalysisJob(analysisId: string): Promise<void> {
         where: { id: analysisId },
         data: {
           status: 'failed',
-          error: error instanceof Error ? error.message : 'Failed to trigger job'
+          errorDetails: error instanceof Error ? error.message : 'Failed to trigger job'
         }
       })
     } catch (updateError) {
       AppLogger.error('Failed to update analysis status after job trigger failure', {
         service: 'analysis-job-trigger',
         operation: 'status_update_error',
-        analysisId,
-        error: updateError instanceof Error ? updateError.message : 'Unknown error'
+        metadata: {
+          analysisId,
+          error: updateError instanceof Error ? updateError.message : 'Unknown error'
+        }
       })
     }
     
@@ -129,8 +137,10 @@ export async function cancelAnalysisJob(analysisId: string): Promise<void> {
       AppLogger.warn('Analysis queue not available, cannot cancel job', {
         service: 'analysis-job-trigger',
         operation: 'cancel_job',
-        analysisId,
-        reason: 'Queue not configured (Redis unavailable)'
+        metadata: {
+          analysisId,
+          reason: 'Queue not configured (Redis unavailable)'
+        }
       })
       
       // Update analysis status
@@ -167,7 +177,9 @@ export async function cancelAnalysisJob(analysisId: string): Promise<void> {
         AppLogger.warn('Failed to parse analysis metadata for job ID', {
           service: 'analysis-job-trigger',
           operation: 'parse_metadata',
-          analysisId
+          metadata: {
+            analysisId
+          }
         })
       }
     }
@@ -182,15 +194,19 @@ export async function cancelAnalysisJob(analysisId: string): Promise<void> {
           service: 'analysis-job-trigger',
           operation: 'job_cancelled',
           businessEvent: 'analysis_cancelled',
-          analysisId,
-          jobId
+          metadata: {
+            analysisId,
+            jobId
+          }
         })
       } else {
         AppLogger.warn('Job not found in queue', {
           service: 'analysis-job-trigger',
           operation: 'job_not_found',
-          analysisId,
-          jobId
+          metadata: {
+            analysisId,
+            jobId
+          }
         })
       }
     }
@@ -212,8 +228,10 @@ export async function cancelAnalysisJob(analysisId: string): Promise<void> {
     AppLogger.error('Failed to cancel analysis job', {
       service: 'analysis-job-trigger',
       operation: 'cancel_job_error',
-      analysisId,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        analysisId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     })
     
     throw error
@@ -231,7 +249,7 @@ export async function retryAnalysisJob(analysisId: string): Promise<void> {
       where: { id: analysisId },
       data: {
         status: 'pending',
-        error: null,
+        errorDetails: null,
         metadata: JSON.stringify({
           retryRequestedAt: new Date().toISOString()
         })
@@ -245,15 +263,19 @@ export async function retryAnalysisJob(analysisId: string): Promise<void> {
       service: 'analysis-job-trigger',
       operation: 'job_retry',
       businessEvent: 'analysis_retried',
-      analysisId
+      metadata: {
+        analysisId
+      }
     })
     
   } catch (error) {
     AppLogger.error('Failed to retry analysis job', {
       service: 'analysis-job-trigger',
       operation: 'retry_job_error',
-      analysisId,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      metadata: {
+        analysisId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     })
     
     throw error

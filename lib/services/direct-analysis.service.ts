@@ -174,7 +174,7 @@ export class DirectAnalysisService {
     logger.info('Starting comment analysis', { analysisId })
 
     // Get high-scoring posts with comments (75+ score threshold)
-    let highScoringPosts
+    let highScoringPosts: any[]
     try {
       highScoringPosts = await prisma.redditPost.findMany({
         where: {
@@ -210,7 +210,9 @@ export class DirectAnalysisService {
       // Fallback: query without comments if there are schema issues
       logger.warn('Failed to query comments for high-scoring posts, skipping comment analysis', { 
         analysisId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
       highScoringPosts = []
     }
@@ -239,15 +241,17 @@ export class DirectAnalysisService {
 
       logger.info('Analyzing comments for post', {
         analysisId,
-        postId: post.id,
-        commentCount: post.comments.length,
-        postScore: post.score
+        metadata: {
+          postId: post.id,
+          commentCount: post.comments.length,
+          postScore: post.score
+        }
       })
 
       try {
         // Use batch analysis for efficiency
         const analysisResults = await commentAnalysisService.batchAnalyzeComments(
-          post.comments.map(comment => ({
+          post.comments.map((comment: any) => ({
             ...comment,
             createdUtc: comment.createdUtc
           })),
@@ -280,8 +284,10 @@ export class DirectAnalysisService {
       } catch (error) {
         logger.error('Failed to analyze comments for post', {
           analysisId,
-          postId: post.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            postId: post.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
 
         // Mark comments as failed but continue processing
@@ -299,8 +305,10 @@ export class DirectAnalysisService {
 
     logger.info('Comment analysis completed', {
       analysisId,
-      totalCommentsProcessed,
-      postsAnalyzed: highScoringPosts.length
+      metadata: {
+        totalCommentsProcessed,
+        postsAnalyzed: highScoringPosts.length
+      }
     })
 
     await this.updateProgress(analysisId, {
@@ -358,7 +366,9 @@ export class DirectAnalysisService {
       // Fallback: query without comments if there are schema issues
       logger.warn('Failed to query with comments, falling back to posts only', { 
         analysisId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
       posts = await prisma.redditPost.findMany({
         where: {
@@ -416,7 +426,7 @@ export class DirectAnalysisService {
             subreddit: post.subreddit,
             score: post.score,
             numComments: post.numComments,
-            comments: post.comments.map(c => ({
+            comments: post.comments.map((c: any) => ({
               content: c.content,
               score: c.score
             }))
@@ -435,7 +445,9 @@ export class DirectAnalysisService {
         } catch (error) {
           logger.error('Failed to process post', {
             analysisId,
-            postId: post.id
+            metadata: {
+              postId: post.id
+            }
           }, error as Error)
           
           // Continue processing other posts even if one fails

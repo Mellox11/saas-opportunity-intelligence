@@ -212,9 +212,10 @@ export class HybridRedditClient {
           operation: 'collect_post_comments',
           metadata: {
             postId: post.redditId,
-            subreddit: post.subreddit
+            subreddit: post.subreddit,
+            error: error instanceof Error ? error.message : 'Unknown error'
           }
-        }, error as Error)
+        })
       }
 
       // Small delay between comment requests
