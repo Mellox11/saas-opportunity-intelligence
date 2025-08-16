@@ -19,6 +19,7 @@ interface TemplateEditorProps {
 export function TemplateEditor({ template, onSave, onCancel, isLoading = false }: TemplateEditorProps) {
   const [formData, setFormData] = useState({
     name: template?.name || '',
+    audience: template?.audience || 'business',
     description: template?.description || '',
     isPublic: template?.isPublic || false
   })
@@ -27,15 +28,15 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
     template?.sections || getDefaultSections()
   )
 
-  const [branding, setBranding] = useState<TemplateBranding>(
-    template?.branding || getDefaultBranding()
+  const [styling, setStyling] = useState<TemplateBranding>(
+    template?.styling || getDefaultStyling()
   )
 
-  const [formatting, setFormatting] = useState<TemplateFormatting>(
-    template?.formatting || getDefaultFormatting()
+  const [customizations, setCustomizations] = useState<TemplateFormatting>(
+    template?.customizations || getDefaultCustomizations()
   )
 
-  const [activeTab, setActiveTab] = useState<'sections' | 'branding' | 'formatting'>('sections')
+  const [activeTab, setActiveTab] = useState<'sections' | 'styling' | 'customizations'>('sections')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const validateForm = (): boolean => {
@@ -71,12 +72,13 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
     try {
       const templateData = {
         name: formData.name,
+        audience: formData.audience,
         description: formData.description,
         isPublic: formData.isPublic,
         sections: sections.map(s => ({ ...s, order: s.included ? s.order : 999 }))
           .sort((a, b) => a.order - b.order),
-        branding,
-        formatting
+        styling,
+        customizations
       }
 
       await onSave(templateData)
@@ -250,11 +252,11 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
     </div>
   )
 
-  const renderBrandingTab = () => (
+  const renderStylingTab = () => (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-          Report Branding
+          Report Styling
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
           Customize the visual appearance of your reports.
@@ -270,14 +272,14 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
             <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={branding.primaryColor}
-                onChange={(e) => setBranding(prev => ({ ...prev, primaryColor: e.target.value }))}
+                value={styling.primaryColor}
+                onChange={(e) => setStyling(prev => ({ ...prev, primaryColor: e.target.value }))}
                 className="w-12 h-8 border border-gray-300 dark:border-gray-600 rounded"
               />
               <input
                 type="text"
-                value={branding.primaryColor}
-                onChange={(e) => setBranding(prev => ({ ...prev, primaryColor: e.target.value }))}
+                value={styling.primaryColor}
+                onChange={(e) => setStyling(prev => ({ ...prev, primaryColor: e.target.value }))}
                 placeholder="#3b82f6"
                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
               />
@@ -291,14 +293,14 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
             <div className="flex items-center gap-2">
               <input
                 type="color"
-                value={branding.secondaryColor}
-                onChange={(e) => setBranding(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                value={styling.secondaryColor}
+                onChange={(e) => setStyling(prev => ({ ...prev, secondaryColor: e.target.value }))}
                 className="w-12 h-8 border border-gray-300 dark:border-gray-600 rounded"
               />
               <input
                 type="text"
-                value={branding.secondaryColor}
-                onChange={(e) => setBranding(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                value={styling.secondaryColor}
+                onChange={(e) => setStyling(prev => ({ ...prev, secondaryColor: e.target.value }))}
                 placeholder="#6366f1"
                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
               />
@@ -312,8 +314,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
           </label>
           <input
             type="text"
-            value={branding.companyName || ''}
-            onChange={(e) => setBranding(prev => ({ ...prev, companyName: e.target.value }))}
+            value={styling.companyName || ''}
+            onChange={(e) => setStyling(prev => ({ ...prev, companyName: e.target.value }))}
             placeholder="Your Company Name"
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
@@ -324,8 +326,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
             Font Family
           </label>
           <select
-            value={branding.fontFamily}
-            onChange={(e) => setBranding(prev => ({ ...prev, fontFamily: e.target.value as any }))}
+            value={styling.fontFamily}
+            onChange={(e) => setStyling(prev => ({ ...prev, fontFamily: e.target.value as any }))}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="system">System Font</option>
@@ -337,8 +339,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
         <div className="flex items-center">
           <input
             type="checkbox"
-            checked={branding.showDotPattern}
-            onChange={(e) => setBranding(prev => ({ ...prev, showDotPattern: e.target.checked }))}
+            checked={styling.showDotPattern}
+            onChange={(e) => setStyling(prev => ({ ...prev, showDotPattern: e.target.checked }))}
             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
           <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -349,11 +351,11 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
     </div>
   )
 
-  const renderFormattingTab = () => (
+  const renderCustomizationsTab = () => (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-          Page Formatting
+          Page Customizations
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-300 mb-6">
           Configure page layout and formatting options.
@@ -367,8 +369,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
               Page Size
             </label>
             <select
-              value={formatting.pageSize}
-              onChange={(e) => setFormatting(prev => ({ ...prev, pageSize: e.target.value as any }))}
+              value={customizations.pageSize}
+              onChange={(e) => setCustomizations(prev => ({ ...prev, pageSize: e.target.value as any }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="A4">A4</option>
@@ -382,8 +384,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
               Orientation
             </label>
             <select
-              value={formatting.orientation}
-              onChange={(e) => setFormatting(prev => ({ ...prev, orientation: e.target.value as any }))}
+              value={customizations.orientation}
+              onChange={(e) => setCustomizations(prev => ({ ...prev, orientation: e.target.value as any }))}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="portrait">Portrait</option>
@@ -397,8 +399,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
             Spacing
           </label>
           <select
-            value={formatting.spacing}
-            onChange={(e) => setFormatting(prev => ({ ...prev, spacing: e.target.value as any }))}
+            value={customizations.spacing}
+            onChange={(e) => setCustomizations(prev => ({ ...prev, spacing: e.target.value as any }))}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           >
             <option value="compact">Compact</option>
@@ -411,8 +413,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
           <div className="flex items-center">
             <input
               type="checkbox"
-              checked={formatting.showPageNumbers}
-              onChange={(e) => setFormatting(prev => ({ ...prev, showPageNumbers: e.target.checked }))}
+              checked={customizations.showPageNumbers}
+              onChange={(e) => setCustomizations(prev => ({ ...prev, showPageNumbers: e.target.checked }))}
               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
             <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -423,8 +425,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
           <div className="flex items-center">
             <input
               type="checkbox"
-              checked={formatting.showTableOfContents}
-              onChange={(e) => setFormatting(prev => ({ ...prev, showTableOfContents: e.target.checked }))}
+              checked={customizations.showTableOfContents}
+              onChange={(e) => setCustomizations(prev => ({ ...prev, showTableOfContents: e.target.checked }))}
               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
             <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
@@ -465,6 +467,21 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
           
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Audience
+            </label>
+            <select
+              value={formData.audience}
+              onChange={(e) => setFormData(prev => ({ ...prev, audience: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="business">Business</option>
+              <option value="technical">Technical</option>
+              <option value="investor">Investor</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Description
             </label>
             <textarea
@@ -495,8 +512,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
         <nav className="flex space-x-8 px-6">
           {[
             { id: 'sections', label: 'Sections' },
-            { id: 'branding', label: 'Branding' },
-            { id: 'formatting', label: 'Formatting' }
+            { id: 'styling', label: 'Styling' },
+            { id: 'customizations', label: 'Formatting' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -516,8 +533,8 @@ export function TemplateEditor({ template, onSave, onCancel, isLoading = false }
       {/* Tab Content */}
       <div className="p-6">
         {activeTab === 'sections' && renderSectionsTab()}
-        {activeTab === 'branding' && renderBrandingTab()}
-        {activeTab === 'formatting' && renderFormattingTab()}
+        {activeTab === 'styling' && renderStylingTab()}
+        {activeTab === 'customizations' && renderCustomizationsTab()}
       </div>
 
       {/* Footer */}
@@ -579,7 +596,7 @@ function getDefaultSections(): TemplateSection[] {
   ]
 }
 
-function getDefaultBranding(): TemplateBranding {
+function getDefaultStyling(): TemplateBranding {
   return {
     primaryColor: '#3b82f6',
     secondaryColor: '#6366f1',
@@ -589,7 +606,7 @@ function getDefaultBranding(): TemplateBranding {
   }
 }
 
-function getDefaultFormatting(): TemplateFormatting {
+function getDefaultCustomizations(): TemplateFormatting {
   return {
     pageSize: 'A4',
     orientation: 'portrait',

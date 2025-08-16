@@ -120,13 +120,13 @@ export function sanitizeApiResponse(response: any): TestResponse | null {
     data: {
       // Statistics (safe numbers)
       totalPosts: Number(data.totalPosts || 0),
-      filteredPosts: Number(data.filteredPosts || 0),
+      filteredPostsCount: Number(data.filteredPosts || 0),
       opportunitiesFound: Number(data.opportunitiesFound || data.pipeline?.opportunitiesFound || 0),
       
       // Pipeline stats
       pipeline: data.pipeline ? {
         redditPosts: Number(data.pipeline.redditPosts || 0),
-        filteredPosts: Number(data.pipeline.filteredPosts || 0),
+        filteredPostsCount: Number(data.pipeline.filteredPosts || 0),
         aiProcessed: Number(data.pipeline.aiProcessed || 0),
         opportunitiesFound: Number(data.pipeline.opportunitiesFound || 0)
       } : undefined,

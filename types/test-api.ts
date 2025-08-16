@@ -36,7 +36,7 @@ export interface Opportunity {
 
 export interface PipelineStats {
   redditPosts: number
-  filteredPosts: number
+  filteredPostsCount: number
   aiProcessed: number
   opportunitiesFound: number
 }
@@ -80,7 +80,7 @@ export interface TestResponse {
   data: {
     // Statistics
     totalPosts?: number
-    filteredPosts?: number
+    filteredPostsCount?: number
     opportunitiesFound?: number
     pipeline?: PipelineStats
     

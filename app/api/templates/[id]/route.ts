@@ -58,10 +58,11 @@ const templateFormattingSchema = z.object({
 
 const updateTemplateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  audience: z.enum(['technical', 'business', 'investor']).optional(),
   description: z.string().max(500).optional(),
   sections: z.array(templateSectionSchema).min(1).optional(),
-  branding: templateBrandingSchema.optional(),
-  formatting: templateFormattingSchema.optional(),
+  styling: templateBrandingSchema.optional(),
+  customizations: templateFormattingSchema.optional(),
   isPublic: z.boolean().optional()
 })
 

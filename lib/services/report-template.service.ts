@@ -10,11 +10,12 @@ import { z } from 'zod'
 export interface ReportTemplate {
   id: string
   name: string
+  audience: string
   description: string
   isDefault: boolean
   sections: TemplateSection[]
-  branding: TemplateBranding
-  formatting: TemplateFormatting
+  styling: TemplateBranding
+  customizations: TemplateFormatting
   createdBy: string
   isPublic: boolean
   createdAt: Date
@@ -70,20 +71,22 @@ export interface TemplateFormatting {
 
 export interface CreateTemplateOptions {
   name: string
+  audience: string
   description: string
   sections: TemplateSection[]
-  branding: TemplateBranding
-  formatting: TemplateFormatting
+  styling: TemplateBranding
+  customizations: TemplateFormatting
   isPublic?: boolean
   baseTemplateId?: string
 }
 
 export interface UpdateTemplateOptions {
   name?: string
+  audience?: string
   description?: string
   sections?: TemplateSection[]
-  branding?: TemplateBranding
-  formatting?: TemplateFormatting
+  styling?: TemplateBranding
+  customizations?: TemplateFormatting
   isPublic?: boolean
 }
 
@@ -102,7 +105,7 @@ export class ReportTemplateService {
       const templates = await prisma.reportTemplate.findMany({
         where: {
           OR: [
-            { createdByUserId: userId },
+            { createdBy: userId },
             { isPublic: true },
             { isDefault: true }
           ]
@@ -137,7 +140,7 @@ export class ReportTemplateService {
         where: {
           id: templateId,
           OR: [
-            { createdByUserId: userId },
+            { createdBy: userId },
             { isPublic: true },
             { isDefault: true }
           ]
@@ -180,13 +183,14 @@ export class ReportTemplateService {
 
       const templateData = {
         name: options.name,
+        audience: options.audience,
         description: options.description,
-        createdByUserId: userId,
+        createdBy: userId,
         isPublic: options.isPublic || false,
         isDefault: false,
         sections: JSON.stringify(options.sections),
-        branding: JSON.stringify(options.branding),
-        formatting: JSON.stringify(options.formatting),
+        styling: JSON.stringify(options.styling),
+        customizations: JSON.stringify(options.customizations),
         baseTemplateId: options.baseTemplateId
       }
 
@@ -232,7 +236,7 @@ export class ReportTemplateService {
       const existingTemplate = await prisma.reportTemplate.findFirst({
         where: {
           id: templateId,
-          createdByUserId: userId
+          createdBy: userId
         }
       })
 
@@ -243,10 +247,11 @@ export class ReportTemplateService {
       const updateData: any = {}
       
       if (options.name) updateData.name = options.name
+      if (options.audience) updateData.audience = options.audience
       if (options.description) updateData.description = options.description
       if (options.sections) updateData.sections = JSON.stringify(options.sections)
-      if (options.branding) updateData.branding = JSON.stringify(options.branding)
-      if (options.formatting) updateData.formatting = JSON.stringify(options.formatting)
+      if (options.styling) updateData.styling = JSON.stringify(options.styling)
+      if (options.customizations) updateData.customizations = JSON.stringify(options.customizations)
       if (options.isPublic !== undefined) updateData.isPublic = options.isPublic
 
       const template = await prisma.reportTemplate.update({
@@ -287,7 +292,7 @@ export class ReportTemplateService {
       const template = await prisma.reportTemplate.findFirst({
         where: {
           id: templateId,
-          createdByUserId: userId,
+          createdBy: userId,
           isDefault: false // Prevent deletion of default templates
         }
       })
@@ -341,10 +346,11 @@ export class ReportTemplateService {
 
       const cloneOptions: CreateTemplateOptions = {
         name,
+        audience: sourceTemplate.audience,
         description: description || `Copy of ${sourceTemplate.name}`,
         sections: sourceTemplate.sections,
-        branding: sourceTemplate.branding,
-        formatting: sourceTemplate.formatting,
+        styling: sourceTemplate.styling,
+        customizations: sourceTemplate.customizations,
         isPublic: false,
         baseTemplateId: sourceTemplateId
       }
@@ -413,13 +419,14 @@ export class ReportTemplateService {
         await prisma.reportTemplate.create({
           data: {
             name: template.name,
+            audience: template.audience,
             description: template.description,
             isDefault: true,
             isPublic: true,
-            createdByUserId: 'system',
+            createdBy: 'system',
             sections: JSON.stringify(template.sections),
-            branding: JSON.stringify(template.branding),
-            formatting: JSON.stringify(template.formatting)
+            styling: JSON.stringify(template.styling),
+            customizations: JSON.stringify(template.customizations)
           }
         })
       }
@@ -450,18 +457,19 @@ export class ReportTemplateService {
     return {
       id: dbTemplate.id,
       name: dbTemplate.name,
+      audience: dbTemplate.audience,
       description: dbTemplate.description,
       isDefault: dbTemplate.isDefault,
       sections: typeof dbTemplate.sections === 'string' 
         ? JSON.parse(dbTemplate.sections) 
         : dbTemplate.sections,
-      branding: typeof dbTemplate.branding === 'string' 
-        ? JSON.parse(dbTemplate.branding) 
-        : dbTemplate.branding,
-      formatting: typeof dbTemplate.formatting === 'string' 
-        ? JSON.parse(dbTemplate.formatting) 
-        : dbTemplate.formatting,
-      createdBy: dbTemplate.createdByUserId,
+      styling: typeof dbTemplate.styling === 'string' 
+        ? JSON.parse(dbTemplate.styling) 
+        : dbTemplate.styling,
+      customizations: typeof dbTemplate.customizations === 'string' 
+        ? JSON.parse(dbTemplate.customizations) 
+        : dbTemplate.customizations,
+      createdBy: dbTemplate.createdBy,
       isPublic: dbTemplate.isPublic,
       createdAt: dbTemplate.createdAt,
       updatedAt: dbTemplate.updatedAt
@@ -495,6 +503,7 @@ export class ReportTemplateService {
     return [
       {
         name: 'Standard Analysis Report',
+        audience: 'business',
         description: 'Comprehensive report with all analysis sections',
         sections: [
           {
@@ -530,14 +539,14 @@ export class ReportTemplateService {
             settings: {}
           }
         ],
-        branding: {
+        styling: {
           primaryColor: '#3b82f6',
           secondaryColor: '#6366f1',
           companyName: 'SaaS Opportunity Intelligence',
           showDotPattern: true,
           fontFamily: 'system'
         },
-        formatting: {
+        customizations: {
           pageSize: 'A4',
           orientation: 'portrait',
           margins: { top: 72, right: 54, bottom: 72, left: 54 },
@@ -551,6 +560,7 @@ export class ReportTemplateService {
       },
       {
         name: 'Executive Summary Only',
+        audience: 'business',
         description: 'Concise overview for quick decision making',
         sections: [
           {
@@ -570,14 +580,14 @@ export class ReportTemplateService {
             settings: { sortBy: 'score', maxItems: 10, expandByDefault: true }
           }
         ],
-        branding: {
+        styling: {
           primaryColor: '#059669',
           secondaryColor: '#0d9488',
           companyName: 'SaaS Opportunity Intelligence',
           showDotPattern: false,
           fontFamily: 'system'
         },
-        formatting: {
+        customizations: {
           pageSize: 'A4',
           orientation: 'portrait',
           margins: { top: 54, right: 54, bottom: 54, left: 54 },
@@ -591,6 +601,7 @@ export class ReportTemplateService {
       },
       {
         name: 'Technical Deep-Dive',
+        audience: 'technical',
         description: 'Detailed technical analysis for development teams',
         sections: [
           {
@@ -626,14 +637,14 @@ export class ReportTemplateService {
             settings: {}
           }
         ],
-        branding: {
+        styling: {
           primaryColor: '#7c3aed',
           secondaryColor: '#8b5cf6',
           companyName: 'SaaS Opportunity Intelligence',
           showDotPattern: true,
           fontFamily: 'mono'
         },
-        formatting: {
+        customizations: {
           pageSize: 'A4',
           orientation: 'portrait',
           margins: { top: 72, right: 54, bottom: 72, left: 54 },
