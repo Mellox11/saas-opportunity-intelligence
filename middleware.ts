@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
     const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
     
     // Auth routes
-    const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password']
+    const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
     const isAuthRoute = authRoutes.some(route => pathname.startsWith(route))
     
     // Validate session using NextAuth's proper token validation
@@ -84,5 +84,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|verify-email).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }

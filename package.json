@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_ENV=development next dev",
+    "dev": "cross-env NODE_ENV=development next dev -p 3002",
     "build": "cross-env NODE_ENV=production next build",
     "start": "cross-env NODE_ENV=production next start",
     "postinstall": "npx prisma generate",
