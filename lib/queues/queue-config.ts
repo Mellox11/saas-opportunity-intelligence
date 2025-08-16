@@ -11,8 +11,11 @@ const redisConfig = {
   })
 }
 
-// Create Redis connection only if needed (for Epic 2+)
-export const redis = process.env.REDIS_URL || process.env.ENABLE_QUEUES 
+// Check if we should use direct processing instead of queues
+export const useDirectProcessing = process.env.ENABLE_DIRECT_PROCESSING === 'true'
+
+// Create Redis connection only if needed (for Epic 2+) and not using direct processing
+export const redis = !useDirectProcessing && (process.env.REDIS_URL || process.env.ENABLE_QUEUES)
   ? new Redis(redisConfig)
   : null
 

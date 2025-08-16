@@ -199,7 +199,7 @@ export default function NewAnalysisPage() {
                   <div className="p-4 mb-6 text-sm text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                     <div className="font-medium mb-2">Please fix the following:</div>
                     <ul className="list-disc list-inside space-y-1">
-                      {validation.errors.map((err, index) => (
+                      {validation.errors.map((err: any, index: number) => (
                         <li key={index}>{err.message}</li>
                       ))}
                     </ul>

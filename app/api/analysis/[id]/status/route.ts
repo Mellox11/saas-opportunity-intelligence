@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { AnalysisOrchestrationService } from '@/lib/services/analysis-orchestration.service'
-import { getServerSession } from 'next-auth'
+import { AuthService } from '@/lib/auth/jwt'
+import { cookies } from 'next/headers'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Check authentication
-    const session = await getServerSession()
-    if (!session?.user?.id) {
+    // Check authentication using the custom JWT system
+    const cookieStore = cookies()
+    const token = cookieStore.get('auth-token')?.value
+    
+    if (!token) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const user = AuthService.verifyToken(token)
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid token' },
         { status: 401 }
       )
     }
@@ -23,7 +34,7 @@ export async function GET(
     const analysis = await prisma.analysis.findFirst({
       where: {
         id: analysisId,
-        userId: session.user.id
+        userId: user.userId
       },
       select: {
         id: true,
@@ -32,7 +43,7 @@ export async function GET(
         createdAt: true,
         completedAt: true,
         estimatedCost: true,
-        maxCost: true,
+        budgetLimit: true,
         configuration: true,
         metadata: true
       }
@@ -88,7 +99,7 @@ export async function GET(
         completedAt: analysis.completedAt,
         estimatedCompletion,
         estimatedCost: analysis.estimatedCost,
-        maxCost: analysis.maxCost,
+        budgetLimit: analysis.budgetLimit,
         configuration: analysis.configuration,
         statistics
       }

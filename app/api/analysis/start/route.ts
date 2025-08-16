@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { AnalysisOrchestrationService } from '@/lib/services/analysis-orchestration.service'
-import { getServerSession } from 'next-auth'
+import { AuthService } from '@/lib/auth/jwt'
+import { cookies } from 'next/headers'
 import { createCorrelatedLogger } from '@/lib/middleware/correlation'
 import { AppLogger } from '@/lib/observability/logger'
 import { analysisRateLimiter, withRateLimit } from '@/lib/security/rate-limiter'
@@ -25,10 +26,12 @@ async function handler(request: NextRequest) {
   try {
     logger.info('Analysis start request received')
 
-    // Check authentication
-    const session = await getServerSession()
-    if (!session?.user?.id) {
-      logger.warn('Unauthorized analysis start attempt')
+    // Check authentication using the custom JWT system
+    const cookieStore = cookies()
+    const token = cookieStore.get('auth-token')?.value
+    
+    if (!token) {
+      logger.warn('Unauthorized analysis start attempt - no token')
       
       AppLogger.auth('Unauthorized analysis start attempt', {
         service: 'api',
@@ -43,8 +46,25 @@ async function handler(request: NextRequest) {
       )
     }
 
+    const user = AuthService.verifyToken(token)
+    if (!user) {
+      logger.warn('Unauthorized analysis start attempt - invalid token')
+      
+      AppLogger.auth('Unauthorized analysis start attempt', {
+        service: 'api',
+        operation: 'start_analysis',
+        authEvent: 'failed_login',
+        success: false
+      })
+
+      return NextResponse.json(
+        { success: false, error: 'Invalid token' },
+        { status: 401 }
+      )
+    }
+
     logger.info('User authenticated for analysis start', {
-      userId: session.user.id
+      userId: user.userId
     })
 
     const body = await request.json()
@@ -78,7 +98,7 @@ async function handler(request: NextRequest) {
     const { subreddits, timeRange, keywords, maxCost } = validationResult.data
 
     logger.info('Validated request data', {
-      userId: session.user.id,
+      userId: user.userId,
       metadata: {
         subreddits,
         timeRange,
@@ -90,16 +110,16 @@ async function handler(request: NextRequest) {
     // Create analysis record
     const analysis = await prisma.analysis.create({
       data: {
-        userId: session.user.id,
+        userId: user.userId,
         status: 'pending',
-        configuration: {
+        configuration: JSON.stringify({
           subreddits,
           timeRange,
           keywords,
           maxCost
-        },
+        }),
         estimatedCost: Math.min(maxCost * 0.8, 20), // Conservative estimate
-        maxCost,
+        budgetLimit: maxCost,
         progress: JSON.stringify({
           stage: 'initializing',
           message: 'Analysis queued for processing',
@@ -110,10 +130,10 @@ async function handler(request: NextRequest) {
 
     logger.info('Analysis record created', {
       analysisId: analysis.id,
-      userId: session.user.id,
+      userId: user.userId,
       metadata: {
         estimatedCost: analysis.estimatedCost,
-        maxCost: analysis.maxCost
+        budgetLimit: analysis.budgetLimit
       }
     })
 
@@ -123,7 +143,7 @@ async function handler(request: NextRequest) {
     try {
       const jobId = await orchestrationService.startAnalysis({
         analysisId: analysis.id,
-        userId: session.user.id,
+        userId: user.userId,
         configuration: {
           subreddits,
           timeRange, 
@@ -135,22 +155,29 @@ async function handler(request: NextRequest) {
       const duration = performance.now() - startTime
       logger.performance('Analysis start completed successfully', duration, {
         analysisId: analysis.id,
-        jobId,
-        userId: session.user.id
+        userId: user.userId,
+        metadata: {
+          jobId
+        }
       })
 
+      // Adjust estimated completion based on processing mode
+      const useDirectProcessing = process.env.ENABLE_DIRECT_PROCESSING === 'true'
+      const estimatedMinutes = useDirectProcessing ? 5 : 10 // Direct processing is faster
+      
       return NextResponse.json({
         success: true,
         analysisId: analysis.id,
         jobId,
-        estimatedCompletion: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-        message: 'Analysis started successfully'
+        estimatedCompletion: new Date(Date.now() + estimatedMinutes * 60 * 1000),
+        message: 'Analysis started successfully',
+        processingMode: useDirectProcessing ? 'direct' : 'queue'
       })
 
     } catch (orchestrationError) {
       logger.error('Orchestration service failed', {
         analysisId: analysis.id,
-        userId: session.user.id
+        userId: user.userId
       }, orchestrationError as Error)
 
       // If orchestration fails, mark analysis as failed

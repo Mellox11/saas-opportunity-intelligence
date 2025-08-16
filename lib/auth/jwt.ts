@@ -26,8 +26,14 @@ export class AuthService {
   
   static verifyToken(token: string) {
     try {
-      return jwt.verify(token, this.JWT_SECRET) as { userId: string; email: string }
+      const secret = this.JWT_SECRET
+      console.log(`🔍 [AuthService] Verifying JWT with secret length: ${secret?.length || 'undefined'}`)
+      console.log(`🔍 [AuthService] Token length: ${token?.length || 'undefined'}`)
+      const result = jwt.verify(token, secret) as { userId: string; email: string }
+      console.log(`✅ [AuthService] JWT verification successful for user: ${result.userId}`)
+      return result
     } catch (error) {
+      console.log(`❌ [AuthService] JWT verification failed: ${error.message}`)
       return null
     }
   }

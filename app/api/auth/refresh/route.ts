@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { AuthService } from '@/lib/auth/jwt'
 import { cookies } from 'next/headers'
 
@@ -8,43 +7,45 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = cookies()
-    const sessionToken = cookieStore.get('session-token')
+    const token = cookieStore.get('auth-token')?.value
     
-    if (!sessionToken) {
+    if (!token) {
       return NextResponse.json(
         { error: 'No session found' },
         { status: 401 }
       )
     }
     
-    // Find session
-    const session = await prisma.session.findUnique({
-      where: { sessionToken: sessionToken.value },
-      include: { user: true }
-    })
+    // Verify current token
+    const user = AuthService.verifyToken(token)
     
-    if (!session || session.expires < new Date()) {
-      // Session expired or not found
-      cookieStore.delete('session-token')
-      return NextResponse.json(
+    if (!user) {
+      // Token invalid or expired - remove it
+      const response = NextResponse.json(
         { error: 'Session expired' },
         { status: 401 }
       )
+      response.cookies.delete('auth-token')
+      return response
     }
     
-    // Extend session
-    await prisma.session.update({
-      where: { id: session.id },
-      data: {
-        expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      }
-    })
+    // Generate new JWT token (refresh)
+    const newToken = AuthService.generateTokens(user.userId, user.email)
     
-    // Generate new JWT token
-    const token = AuthService.generateTokens(session.user.id, session.user.email)
+    // Set new token in cookie
+    const response = NextResponse.json(
+      {
+        user: {
+          id: user.userId,
+          email: user.email,
+          name: user.email // Using email as name fallback
+        },
+        token: newToken
+      },
+      { status: 200 }
+    )
     
-    // Update cookie
-    cookieStore.set('session-token', sessionToken.value, {
+    response.cookies.set('auth-token', newToken, {
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
@@ -52,17 +53,7 @@ export async function GET(request: NextRequest) {
       path: '/',
     })
     
-    return NextResponse.json(
-      {
-        user: {
-          id: session.user.id,
-          email: session.user.email,
-          name: (session.user.profile as any)?.name || session.user.email
-        },
-        token
-      },
-      { status: 200 }
-    )
+    return response
   } catch (error) {
     console.error('Token refresh error:', error)
     return NextResponse.json(

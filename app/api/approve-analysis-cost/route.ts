@@ -16,10 +16,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get session token from cookies
-    const sessionToken = request.cookies.get('session-token')
+    // Get JWT token from cookies
+    const authToken = request.cookies.get('auth-token')
     
-    if (!sessionToken) {
+    if (!authToken) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -27,25 +27,23 @@ export async function POST(request: NextRequest) {
     }
     
     // Lazy load all dependencies to avoid any build-time evaluation
-    const [{ prisma }, { ApiErrorHandler }] = await Promise.all([
+    const [{ prisma }, { ApiErrorHandler }, { AuthService }] = await Promise.all([
       import('@/lib/db'),
-      import('@/lib/utils/api-response')
+      import('@/lib/utils/api-response'),
+      import('@/lib/auth/jwt')
     ])
     
-    // Verify session
-    const session = await prisma.session.findUnique({
-      where: { sessionToken: sessionToken.value },
-      include: { user: true }
-    })
+    // Verify JWT token
+    const tokenUser = AuthService.verifyToken(authToken.value)
     
-    if (!session || session.expires < new Date()) {
+    if (!tokenUser) {
       return NextResponse.json(
-        { error: 'Session expired' },
+        { error: 'Invalid or expired token' },
         { status: 401 }
       )
     }
 
-    const user = session.user
+    const user = { id: tokenUser.userId, email: tokenUser.email }
 
     // Verify ownership
     const analysis = await prisma.analysis.findFirst({

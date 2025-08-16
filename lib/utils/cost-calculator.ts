@@ -51,14 +51,22 @@ export function calculateRedditRequests(
 export function calculateCostBreakdown(
   configuration: AnalysisConfiguration
 ): CostBreakdown {
-  const { subreddits, timeRange } = configuration
+  const { subreddits, timeRange, commentAnalysisEnabled = true } = configuration
   
-  // Calculate Reddit API cost
+  // Calculate Reddit API cost (includes both posts and comments)
   const redditRequests = calculateRedditRequests(subreddits, timeRange)
   const redditCost = (redditRequests / 100) * (COST_CONSTANTS.REDDIT_API_PER_REQUEST * 100)
   
-  // AI cost is relatively fixed per analysis
-  const aiCost = COST_CONSTANTS.AI_COST_PER_ANALYSIS
+  // Base AI cost
+  let aiCost = COST_CONSTANTS.AI_COST_PER_ANALYSIS
+  
+  // AC: 10 - Comment analysis can be disabled by user to reduce costs if not needed
+  if (commentAnalysisEnabled) {
+    // Comment analysis cost (AC: 5 - adds 15-30% to total analysis cost)
+    // Estimate based on high-scoring posts needing comment analysis
+    const commentAnalysisCost = COST_CONSTANTS.AI_COST_PER_ANALYSIS * 0.20 // 20% increase for comment analysis
+    aiCost += commentAnalysisCost
+  }
   
   // Total cost before markup
   const totalCost = redditCost + aiCost
@@ -181,16 +189,23 @@ export function estimateTokenUsage(
  * Calculate incremental cost for a cost event
  */
 export function calculateEventCost(
-  eventType: 'reddit_api_request' | 'openai_tokens' | 'pinecone_query' | 'pinecone_upsert',
+  eventType: 'reddit_api_request' | 'openai_tokens' | 'openai_comment_tokens' | 'reddit_comment_request' | 'pinecone_query' | 'pinecone_upsert',
   quantity: number
 ): number {
   switch (eventType) {
     case 'reddit_api_request':
       return quantity * COST_CONSTANTS.REDDIT_API_PER_REQUEST
+    case 'reddit_comment_request':
+      // Comment collection has same cost as regular API requests
+      return quantity * COST_CONSTANTS.REDDIT_API_PER_REQUEST
     case 'openai_tokens':
       // GPT-4 pricing: ~$0.03 per 1K tokens input, $0.06 per 1K output
       // Using average of $0.045 per 1K tokens
       return (quantity / 1000) * 0.045
+    case 'openai_comment_tokens':
+      // Claude-3 Sonnet pricing: $3.00 per 1M tokens (input/output combined)
+      // More cost-effective than GPT-4 for comment analysis
+      return (quantity / 1000000) * 3.00
     case 'pinecone_query':
       // Pinecone query pricing (simplified)
       return quantity * 0.0001

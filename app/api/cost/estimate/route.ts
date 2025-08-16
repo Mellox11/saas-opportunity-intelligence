@@ -28,7 +28,9 @@ async function handler(request: NextRequest) {
         service: 'cost-estimate-api',
         operation: 'cost_estimate',
         userId: session.user.id,
-        hasHistoricalData: historicalAccuracy !== undefined
+        metadata: {
+          hasHistoricalData: historicalAccuracy !== undefined
+        }
       })
     }
     
@@ -52,8 +54,10 @@ async function handler(request: NextRequest) {
     AppLogger.error('Cost estimation error', {
       service: 'cost-estimate-api',
       operation: 'cost_estimate_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }, error as Error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

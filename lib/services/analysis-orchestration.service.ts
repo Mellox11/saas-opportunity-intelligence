@@ -4,15 +4,18 @@ import {
   analysisQueue, 
   redditCollectionQueue, 
   aiProcessingQueue, 
-  reportGenerationQueue 
+  reportGenerationQueue,
+  useDirectProcessing
 } from '@/lib/queues/queue-config'
 import { CostTrackingService } from '@/lib/services/cost-tracking.service'
+import { DirectAnalysisService } from '@/lib/services/direct-analysis.service'
 import { AppLogger } from '@/lib/observability/logger'
 import { withCorrelation, createCorrelatedLogger } from '@/lib/middleware/correlation'
 
 export type AnalysisStage = 
   | 'initializing' 
   | 'reddit_collection' 
+  | 'comment_analysis'
   | 'ai_processing' 
   | 'report_generation' 
   | 'completed' 
@@ -24,6 +27,7 @@ export interface AnalysisProgress {
   percentage: number
   totalPosts?: number
   processedPosts?: number
+  commentsProcessed?: number
   opportunitiesFound?: number
   estimatedCompletion?: Date
   error?: string
@@ -51,7 +55,7 @@ export class AnalysisOrchestrationService {
   }
 
   /**
-   * Start a new analysis pipeline
+   * Start a new analysis pipeline - supports both queue-based and direct processing
    */
   async startAnalysis(data: AnalysisJobData): Promise<string> {
     const logger = createCorrelatedLogger('analysis-orchestration', 'start_analysis')
@@ -63,7 +67,8 @@ export class AnalysisOrchestrationService {
         metadata: {
           subreddits: data.configuration.subreddits,
           timeRange: data.configuration.timeRange,
-          maxCost: data.configuration.maxCost
+          maxCost: data.configuration.maxCost,
+          processingMode: useDirectProcessing ? 'direct' : 'queue'
         }
       })
 
@@ -75,42 +80,12 @@ export class AnalysisOrchestrationService {
         percentage: 0
       })
 
-      // Add job to analysis queue
-      if (!analysisQueue) {
-        throw new Error('Analysis queue not initialized')
+      // Choose processing mode based on configuration
+      if (useDirectProcessing) {
+        return await this.startDirectProcessing(data, logger)
+      } else {
+        return await this.startQueueProcessing(data, logger)
       }
-
-      const job = await analysisQueue.add('process-analysis', data, {
-        priority: 1, // High priority
-        delay: 0,
-        jobId: data.analysisId // Use analysisId as job ID for tracking
-      })
-
-      logger.info('Analysis job queued successfully', {
-        analysisId: data.analysisId,
-        metadata: {
-          jobId: job.id,
-          priority: 1,
-          queuePosition: await analysisQueue.count()
-        }
-      })
-
-      // Log business event
-      AppLogger.business('Analysis started', {
-        service: 'analysis-orchestration',
-        operation: 'analysis_created',
-        analysisId: data.analysisId,
-        userId: data.userId,
-        businessEvent: 'analysis_started',
-        value: data.configuration.maxCost,
-        currency: 'USD',
-        metadata: {
-          subredditCount: data.configuration.subreddits.length,
-          keywordCount: data.configuration.keywords.predefined.length + data.configuration.keywords.custom.length
-        }
-      })
-
-      return job.id as string
     } catch (error) {
       logger.error('Failed to start analysis', {
         analysisId: data.analysisId,
@@ -120,6 +95,99 @@ export class AnalysisOrchestrationService {
       await this.handleAnalysisError(data.analysisId, error as Error, 'initializing')
       throw error
     }
+  }
+
+  /**
+   * Start direct processing without queues
+   */
+  private async startDirectProcessing(data: AnalysisJobData, logger: any): Promise<string> {
+    logger.info('Starting direct processing mode', {
+      analysisId: data.analysisId,
+      userId: data.userId
+    })
+
+    // Create a unique job ID for tracking
+    const jobId = `direct-${data.analysisId}-${Date.now()}`
+
+    // Start direct processing in background (non-blocking)
+    const directAnalysisService = new DirectAnalysisService()
+    
+    // Process analysis asynchronously but don't wait for completion
+    setImmediate(async () => {
+      try {
+        await directAnalysisService.processAnalysisDirectly({
+          analysisId: data.analysisId,
+          userId: data.userId,
+          configuration: data.configuration
+        })
+      } catch (error) {
+        logger.error('Direct processing failed', {
+          analysisId: data.analysisId,
+          userId: data.userId
+        }, error as Error)
+      }
+    })
+
+    // Log business event
+    AppLogger.business('Analysis started (direct mode)', {
+      service: 'analysis-orchestration',
+      operation: 'analysis_created_direct',
+      analysisId: data.analysisId,
+      userId: data.userId,
+      businessEvent: 'analysis_started',
+      value: data.configuration.maxCost,
+      currency: 'USD',
+      metadata: {
+        subredditCount: data.configuration.subreddits.length,
+        keywordCount: data.configuration.keywords.predefined.length + data.configuration.keywords.custom.length,
+        processingMode: 'direct'
+      }
+    })
+
+    return jobId
+  }
+
+  /**
+   * Start queue-based processing
+   */
+  private async startQueueProcessing(data: AnalysisJobData, logger: any): Promise<string> {
+    // Add job to analysis queue
+    if (!analysisQueue) {
+      throw new Error('Analysis queue not initialized - Redis required for queue mode')
+    }
+
+    const job = await analysisQueue.add('process-analysis', data, {
+      priority: 1, // High priority
+      delay: 0,
+      jobId: data.analysisId // Use analysisId as job ID for tracking
+    })
+
+    logger.info('Analysis job queued successfully', {
+      analysisId: data.analysisId,
+      metadata: {
+        jobId: job.id,
+        priority: 1,
+        queuePosition: await analysisQueue.count()
+      }
+    })
+
+    // Log business event
+    AppLogger.business('Analysis started (queue mode)', {
+      service: 'analysis-orchestration',
+      operation: 'analysis_created_queue',
+      analysisId: data.analysisId,
+      userId: data.userId,
+      businessEvent: 'analysis_started',
+      value: data.configuration.maxCost,
+      currency: 'USD',
+      metadata: {
+        subredditCount: data.configuration.subreddits.length,
+        keywordCount: data.configuration.keywords.predefined.length + data.configuration.keywords.custom.length,
+        processingMode: 'queue'
+      }
+    })
+
+    return job.id as string
   }
 
   /**
@@ -197,6 +265,7 @@ export class AnalysisOrchestrationService {
    */
   private async runAIProcessing(job: Job<AnalysisJobData>): Promise<void> {
     const { analysisId } = job.data
+    const logger = createCorrelatedLogger('analysis-orchestration', 'ai_processing')
     
     await this.updateProgress(analysisId, {
       stage: 'ai_processing',
@@ -204,16 +273,49 @@ export class AnalysisOrchestrationService {
       percentage: 60
     })
 
-    // Get unprocessed posts
-    const posts = await prisma.redditPost.findMany({
-      where: {
+    // Get unprocessed posts (with graceful handling for schema mismatches)
+    let posts
+    try {
+      posts = await prisma.redditPost.findMany({
+        where: {
+          analysisId,
+          processed: false
+        },
+        include: {
+          comments: {
+            select: {
+              id: true,
+              redditId: true,
+              parentId: true,
+              content: true,
+              author: true,
+              score: true,
+              createdUtc: true,
+              rawData: true,
+              analysisMetadata: true,
+              processingStatus: true,
+              embeddingId: true,
+              processedAt: true,
+              postId: true
+            }
+          }
+        }
+      })
+    } catch (error) {
+      // Fallback: query without comments if there are schema issues
+      logger.warn('Failed to query with comments in orchestration, falling back to posts only', { 
         analysisId,
-        processed: false
-      },
-      include: {
-        comments: true
-      }
-    })
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+      posts = await prisma.redditPost.findMany({
+        where: {
+          analysisId,
+          processed: false
+        }
+      })
+      // Add empty comments array to maintain compatibility
+      posts = posts.map(post => ({ ...post, comments: [] }))
+    }
 
     // Add AI processing job
     if (!aiProcessingQueue) {
@@ -293,7 +395,7 @@ export class AnalysisOrchestrationService {
     const [postsCount, opportunitiesCount, totalCost] = await Promise.all([
       prisma.redditPost.count({ where: { analysisId } }),
       prisma.opportunity.count({ where: { analysisId } }),
-      this.costTrackingService.getTotalAnalysisCost(analysisId)
+      this.costTrackingService.getAnalysisCostBreakdown(analysisId)
     ])
 
     // Update analysis status
@@ -310,11 +412,7 @@ export class AnalysisOrchestrationService {
           processedPosts: postsCount,
           opportunitiesFound: opportunitiesCount
         } as AnalysisProgress),
-        metadata: {
-          ...((await prisma.analysis.findUnique({ 
-            where: { id: analysisId }, 
-            select: { metadata: true } 
-          }))?.metadata as Record<string, any> || {}),
+        metadata: JSON.stringify({
           completionStats: {
             totalPosts: postsCount,
             opportunitiesFound: opportunitiesCount,
@@ -326,7 +424,7 @@ export class AnalysisOrchestrationService {
               }))!.createdAt.getTime()) / 60000
             )
           }
-        }
+        })
       }
     })
   }
@@ -403,7 +501,7 @@ export class AnalysisOrchestrationService {
    * Check cost constraints using circuit breaker
    */
   private async checkCostConstraints(analysisId: string, maxCost: number): Promise<void> {
-    const currentCost = await this.costTrackingService.getTotalAnalysisCost(analysisId)
+    const currentCost = await this.costTrackingService.getAnalysisCostBreakdown(analysisId)
     
     if (currentCost.total >= maxCost) {
       throw new Error(`Cost limit exceeded: $${currentCost.total} >= $${maxCost}`)

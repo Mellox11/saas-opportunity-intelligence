@@ -15,106 +15,125 @@ import {
   Download,
   Star,
   MessageSquare,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react'
 
-// Simulated data for Epic 1 demonstration
-const SAMPLE_OPPORTUNITIES = [
-  {
-    id: 1,
-    title: "Developers struggling with API documentation management",
-    subreddit: "r/webdev",
-    score: 92,
-    urgency: 85,
-    marketSignals: 90,
-    feasibility: 95,
-    postUrl: "https://reddit.com/r/webdev/example1",
-    author: "dev_user123",
-    comments: 156,
-    summary: "Multiple developers expressing frustration with keeping API docs in sync with code changes. Current tools are either too complex or lack automation.",
-    keyPhrases: ["API documentation", "automation needed", "sync issues", "developer tools"]
-  },
-  {
-    id: 2,
-    title: "Small businesses need better inventory tracking for online/offline sales",
-    subreddit: "r/smallbusiness",
-    score: 88,
-    urgency: 90,
-    marketSignals: 85,
-    feasibility: 88,
-    postUrl: "https://reddit.com/r/smallbusiness/example2",
-    author: "shop_owner",
-    comments: 89,
-    summary: "Shop owners struggling to sync inventory between physical store and multiple online channels. Existing solutions are enterprise-focused and expensive.",
-    keyPhrases: ["inventory management", "multi-channel", "small business", "affordable solution"]
-  },
-  {
-    id: 3,
-    title: "Content creators want simplified video subtitle generation",
-    subreddit: "r/ContentCreators",
-    score: 85,
-    urgency: 75,
-    marketSignals: 88,
-    feasibility: 92,
-    postUrl: "https://reddit.com/r/ContentCreators/example3",
-    author: "creator_pro",
-    comments: 234,
-    summary: "Many creators spending hours on subtitle creation and translation. AI tools exist but workflow integration is poor and pricing is confusing.",
-    keyPhrases: ["subtitle generation", "video editing", "AI tools", "workflow automation"]
-  },
-  {
-    id: 4,
-    title: "Freelancers need better project time tracking with client reporting",
-    subreddit: "r/freelance",
-    score: 82,
-    urgency: 80,
-    marketSignals: 84,
-    feasibility: 86,
-    postUrl: "https://reddit.com/r/freelance/example4",
-    author: "freelance_dev",
-    comments: 67,
-    summary: "Freelancers want time tracking that automatically generates professional client reports. Current tools focus on employee monitoring, not client transparency.",
-    keyPhrases: ["time tracking", "client reports", "freelance tools", "billing automation"]
-  },
-  {
-    id: 5,
-    title: "React developers seeking better state management DevTools",
-    subreddit: "r/reactjs",
-    score: 78,
-    urgency: 70,
-    marketSignals: 82,
-    feasibility: 85,
-    postUrl: "https://reddit.com/r/reactjs/example5",
-    author: "react_enthusiast",
-    comments: 145,
-    summary: "Developers finding Redux DevTools limiting for modern state management. Need better visualization and debugging for Zustand, Valtio, and other libraries.",
-    keyPhrases: ["state management", "DevTools", "React", "debugging tools"]
+// Types for real API data
+interface SourcePost {
+  id: string
+  redditId: string
+  subreddit: string
+  title: string
+  content: string
+  score: number
+  numComments: number
+  createdUtc: string
+  url: string
+  permalink: string
+}
+
+interface Opportunity {
+  id: string
+  title: string
+  problemStatement: string
+  opportunityScore: number
+  confidenceScore: number
+  urgencyScore: number
+  marketSignalsScore: number
+  feasibilityScore: number
+  classification: string
+  evidence: string[]
+  antiPatterns: string[] | null
+  metadata: any
+  createdAt: string
+  sourcePost: SourcePost | null
+}
+
+interface AnalysisResults {
+  analysis: {
+    id: string
+    status: string
+    completedAt: string
+    configuration: any
   }
-]
+  results: {
+    opportunities: Opportunity[]
+    redditPosts: SourcePost[]
+    pagination: {
+      total: number
+      limit: number
+      offset: number
+      hasMore: boolean
+    }
+    statistics: {
+      totalPosts: number
+      totalOpportunities: number
+      filteredOpportunities: number
+      conversionRate: number
+      avgOpportunityScore: number
+    }
+  }
+}
 
 export default function AnalysisResultsPage() {
   const router = useRouter()
   const params = useParams()
   const analysisId = params.id as string
   
-  const [selectedOpp, setSelectedOpp] = useState<number | null>(null)
-  const [configuration, setConfiguration] = useState<any>(null)
+  const [selectedOpp, setSelectedOpp] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [results, setResults] = useState<AnalysisResults | null>(null)
 
   useEffect(() => {
-    // Load the analysis configuration for display
-    const loadAnalysis = async () => {
+    const loadResults = async () => {
       try {
-        const response = await fetch(`/api/analysis/${analysisId}`)
-        if (response.ok) {
-          const data = await response.json()
-          setConfiguration(JSON.parse(data.configuration))
+        setLoading(true)
+        setError(null)
+
+        // First check if analysis is completed
+        const statusResponse = await fetch(`/api/analysis/${analysisId}/status`)
+        if (!statusResponse.ok) {
+          throw new Error('Failed to check analysis status')
         }
+
+        const statusData = await statusResponse.json()
+        if (!statusData.success) {
+          throw new Error(statusData.error || 'Failed to load analysis status')
+        }
+
+        if (statusData.analysis.status !== 'completed') {
+          // Analysis not completed yet, redirect to execute page
+          router.push(`/analysis/${analysisId}/execute`)
+          return
+        }
+
+        // Load the analysis results
+        const resultsResponse = await fetch(`/api/analysis/${analysisId}/results`)
+        if (!resultsResponse.ok) {
+          throw new Error('Failed to load analysis results')
+        }
+
+        const resultsData = await resultsResponse.json()
+        if (!resultsData.success) {
+          throw new Error(resultsData.error || 'Failed to load results')
+        }
+
+        console.log('API Response:', resultsData) // Debug log
+        console.log('Reddit Posts:', resultsData?.results?.redditPosts) // Debug Reddit posts specifically
+        console.log('Opportunities:', resultsData?.results?.opportunities) // Debug opportunities
+        setResults(resultsData)
       } catch (error) {
-        console.error('Failed to load analysis:', error)
+        console.error('Failed to load analysis results:', error)
+        setError(error instanceof Error ? error.message : 'Failed to load analysis results')
+      } finally {
+        setLoading(false)
       }
     }
-    loadAnalysis()
-  }, [analysisId])
+
+    loadResults()
+  }, [analysisId, router])
 
   const getScoreColor = (score: number) => {
     if (score >= 90) return 'text-green-500'
@@ -129,6 +148,94 @@ export default function AnalysisResultsPage() {
     if (score >= 70) return 'bg-orange-500/20 text-orange-400 border-orange-500/30'
     return 'bg-red-500/20 text-red-400 border-red-500/30'
   }
+
+  const extractKeyPhrases = (evidence: string[]): string[] => {
+    // Extract key phrases from evidence - simplified version
+    return evidence.slice(0, 4).map(e => e.substring(0, 30) + (e.length > 30 ? '...' : ''))
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 dot-grid">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/dashboard')}
+              className="mb-4 text-gray-400 hover:text-white"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-500 mb-4" />
+                <h2 className="text-xl font-semibold text-white mb-2">Loading Analysis Results</h2>
+                <p className="text-gray-400">Please wait while we load your analysis...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-950 dot-grid">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <Button
+              variant="ghost"
+              onClick={() => router.push('/dashboard')}
+              className="mb-4 text-gray-400 hover:text-white"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <AlertCircle className="mx-auto h-8 w-8 text-red-500 mb-4" />
+                <h2 className="text-xl font-semibold text-white mb-2">Error Loading Results</h2>
+                <p className="text-gray-400 mb-4">{error}</p>
+                <Button
+                  onClick={() => window.location.reload()}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!results) {
+    return null
+  }
+
+  const { analysis, results: analysisResults } = results
+  const opportunities = analysisResults.opportunities || []
+  const redditPosts = analysisResults.redditPosts || []
+  const stats = analysisResults.statistics
+  
+  // Show Reddit posts if no opportunities found, otherwise show opportunities
+  const hasOpportunities = opportunities.length > 0
+  const isRedditPosts = !hasOpportunities && redditPosts.length > 0
+  const items = isRedditPosts ? redditPosts : opportunities
+  
+  // Debug logging
+  console.log('Component Debug:', {
+    opportunitiesCount: opportunities.length,
+    redditPostsCount: redditPosts.length,
+    hasOpportunities,
+    isRedditPosts,
+    itemsCount: items.length
+  })
 
   return (
     <div className="min-h-screen bg-gray-950 dot-grid">
@@ -151,7 +258,10 @@ export default function AnalysisResultsPage() {
                   Analysis Results
                 </h1>
                 <p className="text-gray-400">
-                  SaaS opportunities identified from Reddit analysis
+                  {isRedditPosts 
+                    ? "Reddit posts collected from analysis" 
+                    : "SaaS opportunities identified from Reddit analysis"
+                  }
                 </p>
               </div>
               
@@ -171,8 +281,12 @@ export default function AnalysisResultsPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-400">Opportunities Found</p>
-                    <p className="text-2xl font-bold text-white">{SAMPLE_OPPORTUNITIES.length}</p>
+                    <p className="text-sm text-gray-400">
+                      {isRedditPosts ? "Posts Collected" : "Opportunities Found"}
+                    </p>
+                    <p className="text-2xl font-bold text-white">
+                      {isRedditPosts ? stats.totalPosts : stats.totalOpportunities}
+                    </p>
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-500" />
                 </div>
@@ -183,8 +297,12 @@ export default function AnalysisResultsPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-400">Posts Analyzed</p>
-                    <p className="text-2xl font-bold text-white">342</p>
+                    <p className="text-sm text-gray-400">
+                      {isRedditPosts ? "Filtered Posts" : "Posts Analyzed"}
+                    </p>
+                    <p className="text-2xl font-bold text-white">
+                      {isRedditPosts ? stats.filteredOpportunities : stats.totalPosts}
+                    </p>
                   </div>
                   <MessageSquare className="h-8 w-8 text-blue-500" />
                 </div>
@@ -196,7 +314,7 @@ export default function AnalysisResultsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-400">Avg Score</p>
-                    <p className="text-2xl font-bold text-white">85</p>
+                    <p className="text-2xl font-bold text-white">{stats.avgOpportunityScore}</p>
                   </div>
                   <TrendingUp className="h-8 w-8 text-purple-500" />
                 </div>
@@ -207,8 +325,8 @@ export default function AnalysisResultsPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-400">Analysis Time</p>
-                    <p className="text-2xl font-bold text-white">4m 32s</p>
+                    <p className="text-sm text-gray-400">Conversion Rate</p>
+                    <p className="text-2xl font-bold text-white">{stats.conversionRate.toFixed(1)}%</p>
                   </div>
                   <Clock className="h-8 w-8 text-orange-500" />
                 </div>
@@ -217,7 +335,7 @@ export default function AnalysisResultsPage() {
           </div>
 
           {/* Configuration Summary */}
-          {configuration && (
+          {analysis.configuration && (
             <Card className="border-gray-800 bg-gray-900/50 backdrop-blur mb-8">
               <CardHeader>
                 <CardTitle className="text-white text-lg">Analysis Configuration</CardTitle>
@@ -227,17 +345,17 @@ export default function AnalysisResultsPage() {
                   <div>
                     <span className="text-gray-400">Subreddits:</span>
                     <span className="ml-2 text-white">
-                      {configuration.subreddits?.map((s: string) => `r/${s}`).join(', ')}
+                      {analysis.configuration.subreddits?.map((s: string) => `r/${s}`).join(', ')}
                     </span>
                   </div>
                   <div>
                     <span className="text-gray-400">Time Range:</span>
-                    <span className="ml-2 text-white">{configuration.timeRange} days</span>
+                    <span className="ml-2 text-white">{analysis.configuration.timeRange} days</span>
                   </div>
                   <div>
                     <span className="text-gray-400">Keywords:</span>
                     <span className="ml-2 text-white">
-                      {[...(configuration.keywords?.predefined || []), ...(configuration.keywords?.custom || [])].length} active
+                      {[...(analysis.configuration.keywords?.predefined || []), ...(analysis.configuration.keywords?.custom || [])].length} active
                     </span>
                   </div>
                 </div>
@@ -245,111 +363,202 @@ export default function AnalysisResultsPage() {
             </Card>
           )}
 
-          {/* Opportunities List */}
+          {/* Results List */}
           <Card className="border-gray-800 bg-gray-900/50 backdrop-blur">
             <CardHeader>
-              <CardTitle className="text-white">Top SaaS Opportunities</CardTitle>
+              <CardTitle className="text-white">
+                {isRedditPosts ? "Collected Reddit Posts" : "Top SaaS Opportunities"}
+              </CardTitle>
               <CardDescription>
-                Sorted by overall opportunity score
+                {isRedditPosts 
+                  ? "Sorted by Reddit score (upvotes)" 
+                  : "Sorted by overall opportunity score"
+                }
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {SAMPLE_OPPORTUNITIES.map((opp) => (
-                <div
-                  key={opp.id}
-                  className="border border-gray-800 rounded-lg p-4 hover:bg-gray-800/50 transition-colors cursor-pointer"
-                  onClick={() => setSelectedOpp(selectedOpp === opp.id ? null : opp.id)}
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h3 className="text-white font-medium mb-1">{opp.title}</h3>
-                      <div className="flex items-center gap-4 text-sm text-gray-400">
-                        <span>{opp.subreddit}</span>
-                        <span>•</span>
-                        <span>{opp.comments} comments</span>
-                        <span>•</span>
-                        <span>by u/{opp.author}</span>
-                      </div>
-                    </div>
-                    <Badge className={`${getScoreBadgeColor(opp.score)} border`}>
-                      Score: {opp.score}
-                    </Badge>
-                  </div>
-
-                  {/* Score Breakdown */}
-                  <div className="flex gap-6 mb-3">
-                    <div className="text-sm">
-                      <span className="text-gray-500">Urgency:</span>
-                      <span className={`ml-2 font-medium ${getScoreColor(opp.urgency)}`}>
-                        {opp.urgency}
-                      </span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-gray-500">Market:</span>
-                      <span className={`ml-2 font-medium ${getScoreColor(opp.marketSignals)}`}>
-                        {opp.marketSignals}
-                      </span>
-                    </div>
-                    <div className="text-sm">
-                      <span className="text-gray-500">Feasibility:</span>
-                      <span className={`ml-2 font-medium ${getScoreColor(opp.feasibility)}`}>
-                        {opp.feasibility}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Expanded Details */}
-                  {selectedOpp === opp.id && (
-                    <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
-                      <div>
-                        <p className="text-sm text-gray-300">{opp.summary}</p>
-                      </div>
-                      
-                      <div>
-                        <p className="text-sm text-gray-400 mb-2">Key Phrases:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {opp.keyPhrases.map((phrase, idx) => (
-                            <Badge key={idx} variant="secondary" className="bg-gray-800 text-gray-300">
-                              {phrase}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            window.open(opp.postUrl, '_blank')
-                          }}
-                        >
-                          <ExternalLink className="mr-2 h-3 w-3" />
-                          View on Reddit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                        >
-                          <Star className="mr-2 h-3 w-3" />
-                          Save Opportunity
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+              {items.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="mx-auto h-8 w-8 text-yellow-500 mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    {isRedditPosts ? "No Posts Found" : "No Opportunities Found"}
+                  </h3>
+                  <p className="text-gray-400">
+                    {isRedditPosts 
+                      ? "No Reddit posts were collected. Check your subreddit names and try again."
+                      : "No SaaS opportunities were identified in the analyzed posts. Try adjusting your keywords or expanding the time range."
+                    }
+                  </p>
                 </div>
-              ))}
+              ) : (
+                items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border border-gray-800 rounded-lg p-4 hover:bg-gray-800/50 transition-colors cursor-pointer"
+                    onClick={() => setSelectedOpp(selectedOpp === item.id ? null : item.id)}
+                  >
+                    {isRedditPosts ? (
+                      // Reddit Post Display
+                      <>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h3 className="text-white font-medium mb-1">{item.title}</h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <span>r/{item.subreddit}</span>
+                              <span className="flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" />
+                                {item.score} upvotes
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <MessageSquare className="h-3 w-3" />
+                                {item.numComments} comments
+                              </span>
+                            </div>
+                          </div>
+                          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 border">
+                            {item.score}
+                          </Badge>
+                        </div>
+
+                        {/* Expanded Details for Reddit Posts */}
+                        {selectedOpp === item.id && (
+                          <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
+                            <div>
+                              <p className="text-sm text-gray-400 mb-2">Post Content:</p>
+                              <p className="text-sm text-gray-300">
+                                {item.content ? item.content.substring(0, 300) + (item.content.length > 300 ? '...' : '') : 'No content preview available'}
+                              </p>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  // Check if permalink already includes the domain
+                                  const url = item.permalink.startsWith('http') 
+                                    ? item.permalink 
+                                    : `https://reddit.com${item.permalink}`
+                                  window.open(url, '_blank')
+                                }}
+                              >
+                                <ExternalLink className="mr-2 h-3 w-3" />
+                                View on Reddit
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // Opportunity Display (keep existing logic)
+                      <>
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <h3 className="text-white font-medium mb-1">{item.title}</h3>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <span>r/{item.sourcePost?.subreddit}</span>
+                              <span>•</span>
+                              <span>{item.sourcePost?.numComments || 0} comments</span>
+                              <span>•</span>
+                              <span>Score: {item.sourcePost?.score || 0}</span>
+                            </div>
+                          </div>
+                          <Badge className={`${getScoreBadgeColor(item.opportunityScore)} border`}>
+                            Score: {item.opportunityScore}
+                          </Badge>
+                        </div>
+
+                        {/* Score Breakdown */}
+                        <div className="flex gap-6 mb-3">
+                          <div className="text-sm">
+                            <span className="text-gray-500">Urgency:</span>
+                            <span className={`ml-2 font-medium ${getScoreColor(item.urgencyScore)}`}>
+                              {item.urgencyScore}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-500">Market:</span>
+                            <span className={`ml-2 font-medium ${getScoreColor(item.marketSignalsScore)}`}>
+                              {item.marketSignalsScore}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-500">Feasibility:</span>
+                            <span className={`ml-2 font-medium ${getScoreColor(item.feasibilityScore)}`}>
+                              {item.feasibilityScore}
+                            </span>
+                          </div>
+                          <div className="text-sm">
+                            <span className="text-gray-500">Confidence:</span>
+                            <span className={`ml-2 font-medium ${getScoreColor(item.confidenceScore)}`}>
+                              {item.confidenceScore}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Expanded Details for Opportunities */}
+                        {selectedOpp === item.id && (
+                          <div className="mt-4 pt-4 border-t border-gray-800 space-y-3">
+                            <div>
+                              <p className="text-sm text-gray-300">{item.problemStatement}</p>
+                            </div>
+                            
+                            {item.evidence && item.evidence.length > 0 && (
+                              <div>
+                                <p className="text-sm text-gray-400 mb-2">Evidence:</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {extractKeyPhrases(item.evidence).map((phrase, idx) => (
+                                    <Badge key={idx} variant="secondary" className="bg-gray-800 text-gray-300">
+                                      {phrase}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex gap-3 pt-2">
+                              {item.sourcePost && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    window.open(item.sourcePost!.permalink, '_blank')
+                                  }}
+                                >
+                                  <ExternalLink className="mr-2 h-3 w-3" />
+                                  View on Reddit
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                              >
+                                <Star className="mr-2 h-3 w-3" />
+                                Save Opportunity
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
-          {/* Demo Notice */}
-          <div className="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-            <p className="text-sm text-blue-400">
-              <strong>Epic 1 Demo:</strong> This results page shows simulated data for testing purposes. 
-              In the full implementation, these results would come from actual Reddit analysis and AI processing.
+          {/* Success Notice */}
+          <div className="mt-8 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+            <p className="text-sm text-green-400">
+              <strong>✅ Real Data:</strong> {isRedditPosts 
+                ? "This page shows live Reddit posts collected from real subreddits. Click on any post to view it on Reddit."
+                : "This page shows live Reddit analysis results. All opportunities are generated from actual Reddit posts and AI processing."
+              }
             </p>
           </div>
         </div>

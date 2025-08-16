@@ -24,8 +24,8 @@ async function handler(request: NextRequest) {
       )
     }
     
-    // Check if email is verified
-    if (!user.emailVerified) {
+    // Check if email is verified (skip in development)
+    if (!user.emailVerified && process.env.NODE_ENV !== 'development') {
       return NextResponse.json(
         { error: 'Please verify your email before logging in' },
         { status: 401 }
@@ -45,7 +45,8 @@ async function handler(request: NextRequest) {
     // Generate JWT token
     const token = AuthService.generateTokens(user.id, user.email)
     
-    // Create session - clean up existing sessions first for security
+    // Create session in database for security (keep session tracking)
+    // But store JWT as session token for middleware compatibility
     await prisma.session.deleteMany({
       where: { 
         userId: user.id,
@@ -53,18 +54,18 @@ async function handler(request: NextRequest) {
       }
     })
     
-    const sessionToken = crypto.randomUUID()
+    // Store JWT token as session token (not UUID) for middleware compatibility
     await prisma.session.create({
       data: {
-        sessionToken,
+        sessionToken: token, // Use JWT token directly
         userId: user.id,
         expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       }
     })
     
-    // Set secure cookie
+    // Set JWT token as secure session cookie for middleware
     const cookieStore = cookies()
-    cookieStore.set('session-token', sessionToken, {
+    cookieStore.set('session-token', token, {
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
@@ -100,4 +101,4 @@ async function handler(request: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(authRateLimiter)(handler)
+export const POST = process.env.NODE_ENV === 'development' ? handler : withRateLimit(authRateLimiter)(handler)

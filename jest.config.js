@@ -17,6 +17,10 @@ const customJestConfig = {
     '!**/node_modules/**',
     '!**/.next/**',
   ],
+  transformIgnorePatterns: [
+    'node_modules/(?!(msgpackr|bull|@bull-board|ioredis)/)'
+  ],
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
 }
 
 module.exports = createJestConfig(customJestConfig)

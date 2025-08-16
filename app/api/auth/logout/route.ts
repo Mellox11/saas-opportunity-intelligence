@@ -1,33 +1,76 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { cookies } from 'next/headers'
+import { NextRequest } from 'next/server'
+import { LogoutService } from '@/lib/auth/logout.service'
+import { AppLogger } from '@/lib/observability/logger'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies()
-    const sessionToken = cookieStore.get('session-token')
+    // Validate request and extract session information
+    const { sessionToken, userId, correlationId } = await LogoutService.validateLogoutRequest(request)
     
-    if (sessionToken) {
-      // Delete session from database
-      await prisma.session.deleteMany({
-        where: { sessionToken: sessionToken.value }
+    AppLogger.auth('Logout API called', {
+      service: 'auth/logout',
+      operation: 'logout_request',
+      authEvent: 'logout',
+      success: true,
+      correlationId,
+      metadata: { 
+        hasSessionToken: !!sessionToken,
+        hasUserId: !!userId,
+        userAgent: request.headers.get('user-agent')?.substring(0, 100)
+      }
+    })
+
+    // Perform logout with comprehensive cleanup
+    const result = await LogoutService.logout({
+      sessionToken,
+      userId,
+      clearAllUserSessions: false, // Only clear current session by default
+      correlationId
+    })
+
+    if (result.success) {
+      AppLogger.auth('Logout successful', {
+        service: 'auth/logout',
+        operation: 'logout_complete',
+        authEvent: 'logout',
+        success: true,
+        correlationId,
+        metadata: { sessionsCleared: result.sessionsCleared }
       })
-      
-      // Clear cookie
-      cookieStore.delete('session-token')
+
+      // Return response with proper cookie clearing
+      return LogoutService.createLogoutResponse('Logged out successfully', 200)
+    } else {
+      AppLogger.auth('Logout failed', {
+        service: 'auth/logout',
+        operation: 'logout_complete',
+        authEvent: 'logout',
+        success: false,
+        correlationId,
+        metadata: {
+          error: result.error
+        }
+      })
+
+      // Still clear cookies even if database cleanup failed
+      return LogoutService.createLogoutResponse('Logout completed with warnings', 200)
     }
-    
-    return NextResponse.json(
-      { message: 'Logged out successfully' },
-      { status: 200 }
-    )
   } catch (error) {
-    console.error('Logout error:', error)
-    return NextResponse.json(
-      { error: 'Logout failed' },
-      { status: 500 }
-    )
+    const errorMessage = error instanceof Error ? error.message : 'Unknown logout error'
+    
+    AppLogger.auth('Logout API error', {
+      service: 'auth/logout',
+      operation: 'logout_request',
+      authEvent: 'logout',
+      success: false,
+      metadata: {
+        error: errorMessage
+      }
+    })
+
+    // Even on error, try to clear cookies
+    return LogoutService.createLogoutResponse('Logout failed', 500)
   }
 }

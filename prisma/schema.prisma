@@ -23,6 +23,10 @@ model User {
   sessions      Session[]
   verificationTokens VerificationToken[]
   passwordResetTokens PasswordResetToken[]
+  dimensionFeedback DimensionFeedback[]
+  reports       Report[]
+  reportTemplates ReportTemplate[]
+  reportShares  ReportShare[]
   
   @@map("users")
 }
@@ -80,6 +84,7 @@ model Analysis {
   costEvents      CostEvent[]
   redditPosts     RedditPost[]
   opportunities   Opportunity[]
+  reports         Report[]
   
   @@map("analyses")
 }
@@ -144,22 +149,26 @@ model RedditPost {
 }
 
 model RedditComment {
-  id              String         @id @default(cuid())
-  postId          String         @map("post_id")
-  redditId        String         @unique @map("reddit_id")
-  parentId        String?        @map("parent_id")
-  content         String
-  author          String
-  score           Int
-  createdUtc      DateTime       @map("created_utc")
-  rawData         String         @map("raw_data")
-  embeddingId     String?        @map("embedding_id")
-  processedAt     DateTime       @default(now()) @map("processed_at")
+  id                String         @id @default(cuid())
+  postId            String         @map("post_id")
+  redditId          String         @unique @map("reddit_id")
+  parentId          String?        @map("parent_id")
+  content           String
+  author            String
+  anonymizedAuthor  String?        @map("anonymized_author")
+  score             Int
+  createdUtc        DateTime       @map("created_utc")
+  rawData           String         @map("raw_data")
+  analysisMetadata  String         @default("{}") @map("analysis_metadata") // JSON for sentiment analysis, validation signals, confidence scores
+  processingStatus  String         @default("pending") @map("processing_status") // pending, analyzing, completed, failed
+  embeddingId       String?        @map("embedding_id")
+  processedAt       DateTime       @default(now()) @map("processed_at")
   
-  post            RedditPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post              RedditPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
   
   @@index([postId])
   @@index([score])
+  @@index([processingStatus])
   @@map("reddit_comments")
 }
 
@@ -179,12 +188,192 @@ model Opportunity {
   evidence                String         // JSON array of supporting quotes
   antiPatterns            String?        @map("anti_patterns") // JSON array of warnings
   metadata                String         @default("{}") // Additional AI insights
+  scoringDimensions       String         @default("{}") @map("scoring_dimensions") // JSON for 10-dimensional analysis
   createdAt               DateTime       @default(now()) @map("created_at")
   
   analysis                Analysis       @relation(fields: [analysisId], references: [id], onDelete: Cascade)
   sourcePost              RedditPost?    @relation(fields: [sourcePostId], references: [id])
+  dimensionFeedback       DimensionFeedback[]
   
   @@index([analysisId])
   @@index([opportunityScore])
   @@map("opportunities")
+}
+
+// Dimension feedback tracking for user validation
+model DimensionFeedback {
+  id              String         @id @default(cuid())
+  opportunityId   String         @map("opportunity_id")
+  dimensionName   String         @map("dimension_name")
+  userRating      String         @map("user_rating") // 'positive' or 'negative'
+  userId          String         @map("user_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  
+  opportunity     Opportunity    @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id])
+  
+  @@unique([opportunityId, dimensionName, userId]) // One feedback per dimension per user
+  @@index([opportunityId])
+  @@index([userId])
+  @@index([dimensionName])
+  @@map("dimension_feedback")
+}
+
+// Enhanced Report Generation Models (Story 2.4)
+model Report {
+  id              String         @id @default(cuid())
+  analysisId      String         @map("analysis_id")
+  userId          String         @map("user_id")
+  reportType      String         @map("report_type") // 'standard', 'technical', 'business', 'investor'
+  templateId      String?        @map("template_id")
+  
+  // Report content (stored as JSONB for flexibility)
+  executiveSummary   String      @default("{}") @map("executive_summary") // JSON
+  enhancedOpportunities String   @default("[]") @map("enhanced_opportunities") // JSON array
+  marketAnalysis     String      @default("{}") @map("market_analysis") // JSON
+  metadata           String      @default("{}") // JSON for processing metadata
+  
+  // Sharing and privacy
+  shareableLink      String?     @unique @map("shareable_link")
+  privacySettings    String      @default("{}") @map("privacy_settings") // JSON
+  expirationDate     DateTime?   @map("expiration_date")
+  passwordProtected  Boolean     @default(false) @map("password_protected")
+  passwordHash       String?     @map("password_hash")
+  
+  // Status and versioning
+  status             String      @default("generating") // 'generating', 'completed', 'failed'
+  version            String      @default("1.0.0")
+  generationProgress Int         @default(0) @map("generation_progress") // 0-100 percentage
+  errorDetails       String?     @map("error_details")
+  
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+  
+  // Relations
+  analysis           Analysis    @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template           ReportTemplate? @relation(fields: [templateId], references: [id])
+  shares             ReportShare[]
+  analytics          ReportAnalytics[]
+  
+  @@index([analysisId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("reports")
+}
+
+model ReportTemplate {
+  id              String         @id @default(cuid())
+  name            String
+  audience        String         // 'technical', 'business', 'investor'
+  description     String?
+  
+  // Template configuration
+  sections        String         @default("[]") // JSON array of ReportSection
+  styling         String         @default("{}") // JSON for TemplateStyle
+  customizations  String         @default("[]") // JSON array of TemplateCustomization
+  
+  // Metadata
+  version         String         @default("1.0.0")
+  isDefault       Boolean        @default(false) @map("is_default")
+  isPublic        Boolean        @default(false) @map("is_public")
+  createdBy       String         @map("created_by")
+  
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  
+  // Relations
+  creator         User           @relation(fields: [createdBy], references: [id])
+  reports         Report[]
+  
+  @@index([audience])
+  @@index([isDefault])
+  @@index([isPublic])
+  @@map("report_templates")
+}
+
+model ReportShare {
+  id              String         @id @default(cuid())
+  reportId        String         @map("report_id")
+  shareToken      String         @unique @map("share_token")
+  
+  // Permissions
+  permissions     String         @default("{}") // JSON for permissions object
+  passwordHash    String?        @map("password_hash")
+  expiresAt       DateTime?      @map("expires_at")
+  
+  // Tracking
+  accessCount     Int            @default(0) @map("access_count")
+  lastAccessedAt  DateTime?      @map("last_accessed_at")
+  lastAccessedBy  String?        @map("last_accessed_by") // IP or user agent
+  
+  // Metadata
+  createdBy       String         @map("created_by")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  
+  // Relations
+  report          Report         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  creator         User           @relation(fields: [createdBy], references: [id])
+  
+  @@index([reportId])
+  @@index([shareToken])
+  @@index([expiresAt])
+  @@map("report_shares")
+}
+
+model ReportAnalytics {
+  id              String         @id @default(cuid())
+  reportId        String         @map("report_id")
+  eventType       String         @map("event_type") // 'view', 'download', 'share', 'section_view', 'pdf_export'
+  
+  // Event details
+  sectionName     String?        @map("section_name")
+  duration        Int?           // For section views (milliseconds)
+  
+  // Session and tracking
+  sessionId       String?        @map("session_id")
+  userAgent       String?        @map("user_agent")
+  ipAddress       String?        @map("ip_address")
+  referrer        String?
+  
+  // Metadata
+  eventData       String         @default("{}") @map("event_data") // Additional event-specific data
+  createdAt       DateTime       @default(now()) @map("created_at")
+  
+  // Relations
+  report          Report         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  
+  @@index([reportId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@index([sessionId])
+  @@map("report_analytics")
+}
+
+
+model ScoringConsistencyMetrics {
+  id                String         @id @default(cuid())
+  analysisId        String         @map("analysis_id")
+  dimensionName     String         @map("dimension_name")
+  
+  // Metrics
+  averageScore      Float?         @map("average_score") // For scored dimensions
+  averageConfidence Float          @map("average_confidence")
+  standardDeviation Float?         @map("standard_deviation")
+  sampleSize        Int            @map("sample_size")
+  
+  // Quality indicators
+  accuracyRate      Float?         @map("accuracy_rate") // Based on user feedback
+  reliabilityScore  Float?         @map("reliability_score") // Confidence vs feedback correlation
+  
+  // Metadata
+  lastUpdated       DateTime       @updatedAt @map("last_updated")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  
+  @@unique([analysisId, dimensionName], name: "analysisId_dimensionName")
+  @@index([analysisId])
+  @@index([dimensionName])
+  @@index([lastUpdated])
+  @@map("scoring_consistency_metrics")
 }

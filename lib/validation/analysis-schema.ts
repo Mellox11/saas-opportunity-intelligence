@@ -23,7 +23,10 @@ export const configurationSchema = z.object({
   name: z.string()
     .max(100, 'Configuration name cannot exceed 100 characters')
     .min(1, 'Configuration name cannot be empty')
-    .optional()
+    .optional(),
+    
+  // AC: 10 - Comment analysis can be disabled by user to reduce costs if not needed
+  commentAnalysisEnabled: z.boolean().default(true)
 })
 
 export const subredditValidationSchema = z.object({

@@ -1,13 +1,13 @@
 import { prisma } from '@/lib/db'
-import { RedditClient } from '@/lib/services/reddit-client'
+import { HybridRedditClient } from '@/lib/services/hybrid-reddit-client'
 import { ProcessedRedditPost } from '@/lib/validation/reddit-schema'
 import { Prisma } from '@prisma/client'
 
 export class RedditCollectionService {
-  private redditClient: RedditClient
+  private redditClient: HybridRedditClient
 
   constructor(private analysisId: string) {
-    this.redditClient = new RedditClient(analysisId)
+    this.redditClient = new HybridRedditClient(analysisId)
   }
 
   /**
@@ -26,7 +26,7 @@ export class RedditCollectionService {
           status: 'processing',
           startedAt: new Date(),
           progress: JSON.stringify({
-            stage: 'collecting_posts',
+            stage: 'reddit_collection',
             message: 'Collecting Reddit posts...',
             percentage: 10
           })
@@ -34,24 +34,30 @@ export class RedditCollectionService {
       })
 
       // Collect posts from Reddit
+      console.log(`🔄 Starting Reddit collection for subreddits: ${subreddits.join(', ')}`)
+      console.log(`🔄 Time range: ${timeRange} days, Keywords: ${JSON.stringify(keywords)}`)
+      
       const posts = await this.redditClient.collectPostsFromSubreddits(
         subreddits,
         timeRange,
         keywords,
-        500 // Max posts per subreddit
+        2000 // Increased limit to fetch all posts in time range
       )
 
-      console.log(`Collected ${posts.length} matching posts from Reddit`)
+      console.log(`✅ Reddit client returned ${posts.length} posts`)
+      console.log(`📊 Posts breakdown:`, posts.slice(0, 3).map(p => ({ title: p.title, subreddit: p.subreddit, score: p.score })))
 
       // Store posts in database
+      console.log(`💾 Storing ${posts.length} posts in database...`)
       await this.storePosts(posts)
+      console.log(`✅ Posts successfully stored in database`)
 
       // Update progress
       await prisma.analysis.update({
         where: { id: this.analysisId },
         data: {
           progress: JSON.stringify({
-            stage: 'collecting_comments',
+            stage: 'reddit_collection',
             message: 'Collecting comments for high-scoring posts...',
             percentage: 40
           })
@@ -73,7 +79,7 @@ export class RedditCollectionService {
         where: { id: this.analysisId },
         data: {
           progress: JSON.stringify({
-            stage: 'posts_collected',
+            stage: 'reddit_collection',
             message: `Collected ${posts.length} posts and ${commentsCount} comments`,
             percentage: 50,
             postsCollected: posts.length,

@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
         AppLogger.info('Job monitoring status requested', {
           service: 'job-monitoring-admin',
           operation: 'status_check',
-          isRunning: status.isRunning
+          metadata: {
+            isRunning: status.isRunning
+          }
         })
 
         return NextResponse.json({
@@ -29,8 +31,10 @@ export async function GET(request: NextRequest) {
         AppLogger.info('Job monitoring metrics requested', {
           service: 'job-monitoring-admin',
           operation: 'metrics_requested',
-          overallHealth: metrics.overallHealthStatus,
-          totalJobs: metrics.totalJobs
+          metadata: {
+            overallHealth: metrics.overallHealthStatus,
+            totalJobs: metrics.totalJobs
+          }
         })
 
         return NextResponse.json({
@@ -77,8 +81,10 @@ export async function GET(request: NextRequest) {
     AppLogger.error('Job monitoring API request failed', {
       service: 'job-monitoring-admin',
       operation: 'api_request_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }, error as Error)
 
     return NextResponse.json({
       error: 'Failed to process request',
@@ -136,7 +142,9 @@ export async function POST(request: NextRequest) {
           service: 'job-monitoring-admin',
           operation: 'config_updated',
           businessEvent: 'system_configuration',
-          newConfig: config
+          metadata: {
+            newConfig: config
+          }
         })
 
         return NextResponse.json({
@@ -171,8 +179,10 @@ export async function POST(request: NextRequest) {
     AppLogger.error('Job monitoring admin action failed', {
       service: 'job-monitoring-admin',
       operation: 'admin_action_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }, error as Error)
 
     return NextResponse.json({
       error: 'Admin action failed',

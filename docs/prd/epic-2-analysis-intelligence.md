@@ -40,24 +40,6 @@ so that I can make data-driven decisions about which opportunities to pursue.
 9. Scoring algorithm handles edge cases and missing information gracefully
 10. Quality metrics show scoring confidence and reliability for each opportunity
 
-## Story 2.3: Advanced Anti-Pattern Detection
-
-As a user avoiding common startup pitfalls,
-I want the system to identify and flag problematic opportunity types,
-so that I can focus on viable opportunities and avoid wasting time on poor prospects.
-
-### Acceptance Criteria
-
-1. AI flags opportunities with: free alternatives exist, enterprise-only requirements, one-time needs, over-saturated markets, regulation-heavy industries, requires specialized expertise
-2. Anti-pattern warnings prominently displayed on opportunity cards with red/orange warning styling
-3. Each anti-pattern includes clear explanation and specific evidence from analyzed posts
-4. Anti-pattern detection accuracy >85% based on manual validation sample of 100+ opportunities
-5. Users can override anti-pattern warnings with explicit acknowledgment and reasoning
-6. Anti-pattern summary section in reports shows "Opportunities to Avoid" with rationale
-7. Learning system tracks user override patterns to improve anti-pattern detection accuracy
-8. Custom anti-pattern rules allow users to add specific criteria for their situation
-9. Anti-pattern severity levels (warning vs critical) help users prioritize attention
-10. Documentation explains each anti-pattern type with examples and reasoning
 
 ## Story 2.4: Enhanced Report Generation
 

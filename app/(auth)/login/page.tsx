@@ -45,11 +45,16 @@ function LoginForm() {
         throw new Error(result.error || 'Login failed')
       }
       
-      // Store JWT token
+      // Store JWT token in localStorage for client-side use
       localStorage.setItem('auth-token', result.token)
       
-      // Redirect to dashboard
-      router.push('/dashboard')
+      // Also set as httpOnly=false cookie for middleware access (backup)
+      // Note: The API already sets a secure httpOnly session-token cookie with JWT
+      document.cookie = `auth-token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`
+      
+      // Use window.location for full page reload to ensure cookies are transmitted
+      // This prevents race condition where middleware runs before cookies are set
+      window.location.href = '/dashboard'
     } catch (err: any) {
       setError(err.message)
     } finally {

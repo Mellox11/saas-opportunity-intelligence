@@ -9,7 +9,9 @@ export async function GET(request: NextRequest) {
     AppLogger.info('Queue cleanup status requested', {
       service: 'queue-cleanup-admin',
       operation: 'status_check',
-      isRunning: status.isRunning
+      metadata: {
+        isRunning: status.isRunning
+      }
     })
 
     return NextResponse.json({
@@ -21,8 +23,10 @@ export async function GET(request: NextRequest) {
     AppLogger.error('Queue cleanup status check failed', {
       service: 'queue-cleanup-admin',
       operation: 'status_check_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }, error as Error)
 
     return NextResponse.json({
       error: 'Failed to get cleanup status',
@@ -72,7 +76,9 @@ export async function POST(request: NextRequest) {
           service: 'queue-cleanup-admin',
           operation: 'manual_cleanup',
           businessEvent: 'system_maintenance',
-          metrics
+          metadata: {
+            metrics
+          }
         })
 
         return NextResponse.json({
@@ -106,8 +112,10 @@ export async function POST(request: NextRequest) {
     AppLogger.error('Queue cleanup admin action failed', {
       service: 'queue-cleanup-admin',
       operation: 'admin_action_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }, error as Error)
 
     return NextResponse.json({
       error: 'Admin action failed',

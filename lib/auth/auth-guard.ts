@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { AuthService } from '@/lib/auth/jwt'
 
 export function withAuth(handler: Function) {
   return async (req: NextRequest, ...args: any[]) => {
     try {
-      // Get session token from cookies
-      const sessionToken = req.cookies.get('session-token')
+      // Get JWT token from cookies
+      const authToken = req.cookies.get('auth-token')
       
-      if (!sessionToken) {
+      if (!authToken) {
         return NextResponse.json(
           { error: 'Authentication required' },
           { status: 401 }
         )
       }
       
-      // Verify session
-      const session = await prisma.session.findUnique({
-        where: { sessionToken: sessionToken.value },
-        include: { user: true }
-      })
+      // Verify JWT token
+      const user = AuthService.verifyToken(authToken.value)
       
-      if (!session || session.expires < new Date()) {
+      if (!user) {
         return NextResponse.json(
-          { error: 'Session expired' },
+          { error: 'Invalid or expired token' },
           { status: 401 }
         )
       }
       
-      // Add user to request context
-      ;(req as any).user = session.user
+      // Add user to request context (map JWT payload to expected format)
+      ;(req as any).user = {
+        id: user.userId,
+        email: user.email
+      }
       
       return handler(req, ...args)
     } catch (error) {

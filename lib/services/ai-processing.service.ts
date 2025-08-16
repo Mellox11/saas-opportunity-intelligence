@@ -6,6 +6,9 @@ import { CostTrackingService } from '@/lib/services/cost-tracking.service'
 import { calculateEventCost } from '@/lib/utils/cost-calculator'
 import { circuitBreakerRegistry } from '@/lib/infrastructure/circuit-breaker-registry'
 import { AppLogger } from '@/lib/observability/logger'
+import { DimensionalAnalysisService } from '@/lib/services/dimensional-analysis.service'
+import { ScoringConsistencyService } from '@/lib/services/scoring-consistency.service'
+import { CommentAnalysisMetadata } from '@/lib/validation/reddit-schema'
 
 // Schema for AI classification results
 const opportunityClassificationSchema = z.object({
@@ -24,10 +27,14 @@ export type OpportunityClassification = z.infer<typeof opportunityClassification
 
 export class AIProcessingService {
   private costTrackingService: CostTrackingService
+  private dimensionalAnalysisService: DimensionalAnalysisService
+  private scoringConsistencyService: ScoringConsistencyService
   private model = 'gpt-4-turbo-preview' // Using GPT-4 for better classification
 
   constructor(private analysisId: string) {
     this.costTrackingService = new CostTrackingService()
+    this.dimensionalAnalysisService = new DimensionalAnalysisService(this.analysisId)
+    this.scoringConsistencyService = new ScoringConsistencyService()
   }
 
   /**
@@ -243,38 +250,135 @@ Consider factors like:
   ): Promise<void> {
     if (opportunities.length === 0) return
 
-    const opportunityData = opportunities.map((opp, i) => {
+    // Process opportunities individually to add dimensional scoring
+    for (let i = 0; i < opportunities.length; i++) {
+      const opp = opportunities[i]
       const post = posts.find(p => p.id === posts[i]?.id) || posts[i]
       const opportunityScore = this.calculateOpportunityScore(opp)
       
-      return {
-        analysisId: this.analysisId,
-        sourcePostId: post.id,
-        title: post.title.substring(0, 200), // Limit title length
-        problemStatement: opp.problemStatement.substring(0, 1000), // Prevent oversized statements
-        opportunityScore,
-        confidenceScore: opp.confidence,
-        urgencyScore: opp.urgencyScore,
-        marketSignalsScore: opp.marketSignalsScore,
-        feasibilityScore: opp.feasibilityScore,
-        classification: opp.isSaasFeasible ? 'saas_feasible' : 'not_feasible',
-        evidence: JSON.stringify(opp.evidence),
-        antiPatterns: opp.antiPatterns ? JSON.stringify(opp.antiPatterns) : null,
-        metadata: JSON.stringify({
-          reasoning: opp.reasoning.substring(0, 500), // Limit reasoning length
-          postScore: post.score,
-          postComments: post.numComments,
-          subreddit: post.subreddit,
-          classificationTimestamp: new Date().toISOString()
+      try {
+        // Get comment context for dimensional analysis if available
+        const commentContext = await this.getCommentContextForPost(post.id)
+        
+        // Perform dimensional analysis
+        const dimensionalAnalysis = await this.dimensionalAnalysisService.analyzeDimensions(
+          post.content || post.title,
+          post.title,
+          commentContext
+        )
+
+        // Store opportunity with dimensional scoring
+        await prisma.opportunity.create({
+          data: {
+            analysisId: this.analysisId,
+            sourcePostId: post.id,
+            title: post.title.substring(0, 200),
+            problemStatement: opp.problemStatement.substring(0, 1000),
+            opportunityScore,
+            confidenceScore: opp.confidence,
+            urgencyScore: opp.urgencyScore,
+            marketSignalsScore: opp.marketSignalsScore,
+            feasibilityScore: opp.feasibilityScore,
+            classification: opp.isSaasFeasible ? 'saas_feasible' : 'not_feasible',
+            evidence: JSON.stringify(opp.evidence),
+            antiPatterns: opp.antiPatterns ? JSON.stringify(opp.antiPatterns) : null,
+            metadata: JSON.stringify({
+              reasoning: opp.reasoning.substring(0, 500),
+              postScore: post.score,
+              postComments: post.numComments,
+              subreddit: post.subreddit,
+              classificationTimestamp: new Date().toISOString()
+            }),
+            scoringDimensions: JSON.stringify(dimensionalAnalysis)
+          }
+        })
+
+        AppLogger.info('Opportunity stored with dimensional analysis', {
+          service: 'ai-processing',
+          operation: 'store_opportunity',
+          metadata: {
+            analysisId: this.analysisId,
+            postId: post.id,
+            compositeScore: dimensionalAnalysis.compositeScore,
+            confidenceScore: dimensionalAnalysis.confidenceScore
+          }
+        })
+
+      } catch (error) {
+        AppLogger.error('Failed to store opportunity with dimensional analysis', {
+          service: 'ai-processing',
+          operation: 'store_opportunity_error',
+          metadata: {
+            analysisId: this.analysisId,
+            postId: post.id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
+        })
+
+        // Fall back to storing without dimensional analysis
+        await prisma.opportunity.create({
+          data: {
+            analysisId: this.analysisId,
+            sourcePostId: post.id,
+            title: post.title.substring(0, 200),
+            problemStatement: opp.problemStatement.substring(0, 1000),
+            opportunityScore,
+            confidenceScore: opp.confidence,
+            urgencyScore: opp.urgencyScore,
+            marketSignalsScore: opp.marketSignalsScore,
+            feasibilityScore: opp.feasibilityScore,
+            classification: opp.isSaasFeasible ? 'saas_feasible' : 'not_feasible',
+            evidence: JSON.stringify(opp.evidence),
+            antiPatterns: opp.antiPatterns ? JSON.stringify(opp.antiPatterns) : null,
+            metadata: JSON.stringify({
+              reasoning: opp.reasoning.substring(0, 500),
+              postScore: post.score,
+              postComments: post.numComments,
+              subreddit: post.subreddit,
+              classificationTimestamp: new Date().toISOString()
+            }),
+            scoringDimensions: JSON.stringify({}) // Empty dimensions on fallback
+          }
         })
       }
-    })
+    }
+  }
 
-    // Batch insert for better performance
-    await prisma.opportunity.createMany({
-      data: opportunityData,
-      skipDuplicates: true
-    })
+  /**
+   * Get comment analysis metadata for a post to provide context for dimensional analysis
+   */
+  private async getCommentContextForPost(postId: string): Promise<CommentAnalysisMetadata[] | undefined> {
+    try {
+      const comments = await prisma.redditComment.findMany({
+        where: { 
+          postId,
+          processingStatus: 'completed',
+          NOT: { analysisMetadata: '{}' }
+        },
+        take: 10, // Limit to top 10 analyzed comments for performance
+        orderBy: { score: 'desc' }
+      })
+
+      return comments
+        .map(comment => {
+          try {
+            return JSON.parse(comment.analysisMetadata) as CommentAnalysisMetadata
+          } catch {
+            return null
+          }
+        })
+        .filter((metadata): metadata is CommentAnalysisMetadata => metadata !== null)
+    } catch (error) {
+      AppLogger.warn('Failed to get comment context for dimensional analysis', {
+        service: 'ai-processing',
+        operation: 'get_comment_context',
+        metadata: {
+          postId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      })
+      return undefined
+    }
   }
 
   /**
@@ -332,5 +436,163 @@ Consider factors like:
         sourcePost: true
       }
     })
+  }
+
+  /**
+   * Public method to classify a single opportunity and store it
+   * Used by direct processing mode
+   */
+  async classifyOpportunity(postData: {
+    postId: string
+    title: string
+    content: string
+    subreddit: string
+    score: number
+    numComments: number
+    comments: Array<{ content: string, score: number }>
+  }): Promise<any[]> {
+    try {
+      // Format post data for classification
+      const post = {
+        id: postData.postId,
+        title: postData.title,
+        content: postData.content,
+        subreddit: postData.subreddit,
+        score: postData.score,
+        numComments: postData.numComments,
+        comments: postData.comments
+      }
+
+      // Classify the post
+      const classification = await this.classifyPost(post)
+
+      // If not feasible, return empty array
+      if (!classification.isSaasFeasible) {
+        return []
+      }
+
+      // Calculate opportunity score
+      const opportunityScore = this.calculateOpportunityScore(classification)
+
+      // Store in database if score is high enough
+      if (opportunityScore >= 50) {
+        // Perform dimensional analysis for qualified opportunities
+        const combinedContent = `${postData.title}\n\n${postData.content}`
+        
+        // Get comment analysis metadata if available
+        const commentMetadata = await this.getCommentAnalysisMetadata(postData.postId)
+        
+        // Run dimensional analysis
+        const dimensionalAnalysis = await this.dimensionalAnalysisService.analyzeDimensions(
+          combinedContent,
+          postData.title,
+          commentMetadata
+        )
+
+        // Update composite score based on dimensional analysis
+        const finalOpportunityScore = Math.round(
+          (opportunityScore * 0.3) + (dimensionalAnalysis.compositeScore * 0.7)
+        )
+
+        const opportunityData = {
+          analysisId: this.analysisId,
+          sourcePostId: postData.postId,
+          title: classification.problemStatement.substring(0, 200),
+          problemStatement: classification.problemStatement,
+          opportunityScore: finalOpportunityScore,
+          confidenceScore: Math.round(classification.confidence * 100),
+          urgencyScore: classification.urgencyScore,
+          marketSignalsScore: classification.marketSignalsScore,
+          feasibilityScore: classification.feasibilityScore,
+          classification: 'saas_opportunity',
+          evidence: JSON.stringify(classification.evidence),
+          antiPatterns: classification.antiPatterns ? JSON.stringify(classification.antiPatterns) : null,
+          metadata: JSON.stringify({
+            reasoning: classification.reasoning,
+            model: this.model,
+            timestamp: new Date().toISOString()
+          }),
+          scoringDimensions: JSON.stringify(dimensionalAnalysis)
+        }
+
+        const opportunity = await prisma.opportunity.create({
+          data: opportunityData
+        })
+
+        // Update scoring consistency metrics
+        try {
+          await this.scoringConsistencyService.updateConsistencyMetrics(
+            this.analysisId,
+            dimensionalAnalysis
+          )
+        } catch (error) {
+          AppLogger.warn('Failed to update consistency metrics', {
+            service: 'ai-processing',
+            operation: 'update_consistency_metrics',
+            metadata: {
+              opportunityId: opportunity.id,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            }
+          })
+        }
+
+        return [opportunity]
+      }
+
+      return []
+    } catch (error) {
+      AppLogger.error('Failed to classify individual opportunity', {
+        service: 'ai-processing',
+        operation: 'classify_opportunity',
+        metadata: {
+          postId: postData.postId,
+          analysisId: this.analysisId
+        }
+      }, error as Error)
+      
+      return []
+    }
+  }
+
+  /**
+   * Get comment analysis metadata for a post to enhance dimensional analysis
+   */
+  private async getCommentAnalysisMetadata(postId: string): Promise<CommentAnalysisMetadata[] | undefined> {
+    try {
+      const comments = await prisma.redditComment.findMany({
+        where: {
+          postId,
+          processingStatus: 'completed',
+          analysisMetadata: {
+            not: '{}'
+          }
+        },
+        select: {
+          analysisMetadata: true
+        },
+        take: 10 // Limit for performance
+      })
+
+      return comments
+        .map(comment => {
+          try {
+            return JSON.parse(comment.analysisMetadata as string) as CommentAnalysisMetadata
+          } catch {
+            return null
+          }
+        })
+        .filter((metadata): metadata is CommentAnalysisMetadata => metadata !== null)
+
+    } catch (error) {
+      AppLogger.warn('Failed to get comment analysis metadata', {
+        service: 'ai-processing',
+        operation: 'get_comment_metadata',
+        metadata: {
+          postId,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
+      })
+      return undefined
+    }
   }
 }

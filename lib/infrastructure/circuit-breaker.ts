@@ -164,7 +164,7 @@ export class CircuitBreaker<T> {
   }
 
   private logStateChange(newState: CircuitState, reason: string): void {
-    AppLogger.info('Circuit breaker state change', {
+    AppLogger.debug('Circuit breaker state change', {
       service: 'circuit-breaker',
       operation: 'state_change',
       circuitName: this.config.name,

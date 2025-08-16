@@ -60,8 +60,28 @@ describe('CostCalculator', () => {
       expect(breakdown).toHaveProperty('total')
       
       expect(breakdown.reddit).toBeGreaterThan(0)
-      expect(breakdown.ai).toBe(1.40) // Fixed AI cost
+      expect(breakdown.ai).toBe(1.68) // AI cost including comment analysis (1.40 + 20%)
       expect(breakdown.total).toBeCloseTo(breakdown.reddit + breakdown.ai, 3)
+    })
+    
+    test('excludes comment analysis cost when disabled', () => {
+      const configWithoutComments = {
+        ...sampleConfiguration,
+        commentAnalysisEnabled: false
+      }
+      const breakdown = calculateCostBreakdown(configWithoutComments)
+      
+      expect(breakdown.ai).toBe(1.40) // Base AI cost without comment analysis
+    })
+    
+    test('includes comment analysis cost when enabled', () => {
+      const configWithComments = {
+        ...sampleConfiguration,
+        commentAnalysisEnabled: true
+      }
+      const breakdown = calculateCostBreakdown(configWithComments)
+      
+      expect(breakdown.ai).toBe(1.68) // AI cost with comment analysis (1.40 + 20%)
     })
     
     test('reddit cost increases with more subreddits', () => {

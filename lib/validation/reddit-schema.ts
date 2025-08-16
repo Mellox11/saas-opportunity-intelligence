@@ -22,9 +22,28 @@ export const redditCommentSchema = z.object({
   parentId: z.string().nullable(),
   content: z.string(),
   author: z.string(),
+  anonymizedAuthor: z.string().optional(),
   score: z.number().int(),
   createdUtc: z.string().or(z.date()),
+  analysisMetadata: z.record(z.any()).optional(),
+  processingStatus: z.enum(['pending', 'analyzing', 'completed', 'failed']).optional(),
   rawData: z.record(z.any()).optional()
+})
+
+// Comment Analysis Metadata Schema
+export const commentAnalysisMetadataSchema = z.object({
+  sentimentScore: z.number().min(-1).max(1), // -1 to 1 (negative to positive)
+  confidenceScore: z.number().min(0).max(1), // 0 to 1
+  validationSignals: z.object({
+    agreement: z.boolean(),
+    disagreement: z.boolean(),
+    alternativeSolutions: z.array(z.string())
+  }),
+  enthusiasmLevel: z.enum(['high', 'medium', 'low']),
+  skepticismLevel: z.enum(['high', 'medium', 'low']),
+  processedAt: z.string().or(z.date()).optional(),
+  aiModel: z.string().optional(),
+  processingTimeMs: z.number().optional()
 })
 
 // Collection Request Schema
@@ -72,6 +91,7 @@ export const processedRedditPostSchema = z.object({
 // Types
 export type RedditPost = z.infer<typeof redditPostSchema>
 export type RedditComment = z.infer<typeof redditCommentSchema>
+export type CommentAnalysisMetadata = z.infer<typeof commentAnalysisMetadataSchema>
 export type RedditCollectionRequest = z.infer<typeof redditCollectionRequestSchema>
 export type RedditListing = z.infer<typeof redditListingSchema>
 export type ProcessedRedditPost = z.infer<typeof processedRedditPostSchema>

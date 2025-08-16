@@ -35,8 +35,12 @@ export async function POST(request: NextRequest) {
       operation: 'cost_approval',
       businessEvent: 'cost_approved',
       analysisId: analysis.id,
-      estimatedCost: validatedData.estimatedCost,
-      approvedBudget: validatedData.approvedBudget
+      value: validatedData.approvedBudget,
+      currency: 'USD',
+      metadata: {
+        estimatedCost: validatedData.estimatedCost,
+        approvedBudget: validatedData.approvedBudget
+      }
     })
     
     return NextResponse.json({
@@ -50,8 +54,10 @@ export async function POST(request: NextRequest) {
     AppLogger.error('Cost approval error', {
       service: 'approve-cost-api',
       operation: 'cost_approval_error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
+      metadata: {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }, error as Error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

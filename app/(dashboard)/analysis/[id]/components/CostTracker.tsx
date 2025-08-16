@@ -34,8 +34,8 @@ export function CostTracker({
   className
 }: CostTrackerProps) {
   const [trackingData, setTrackingData] = useState<CostTrackingUpdate | null>(initialData || null)
-  const [isConnected, setIsConnected] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+  const [error, setError] = useState<string | null>(null)
   
   // Poll for updates (will be replaced with WebSocket in production)
   useEffect(() => {
@@ -184,7 +184,6 @@ export function CostTracker({
             <Progress 
               value={costPercentOfEstimate} 
               className="h-2 bg-gray-700"
-              indicatorClassName={getProgressColor()}
             />
             <div className="flex justify-between text-xs text-gray-500">
               <span>{formatCurrency(currentCost)}</span>
@@ -203,7 +202,6 @@ export function CostTracker({
             <Progress 
               value={costPercentOfBudget} 
               className="h-2 bg-gray-700"
-              indicatorClassName={getProgressColor()}
             />
             <div className="flex justify-between text-xs text-gray-500">
               <span>{formatCurrency(currentCost)}</span>

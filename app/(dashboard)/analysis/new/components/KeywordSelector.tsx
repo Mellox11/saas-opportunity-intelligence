@@ -55,7 +55,7 @@ export function KeywordSelector({ value, onChange, disabled }: KeywordSelectorPr
   }
 
   const selectAllInCategory = (category: keyof typeof PREDEFINED_KEYWORDS) => {
-    const categoryKeywords = PREDEFINED_KEYWORDS[category]
+    const categoryKeywords = [...PREDEFINED_KEYWORDS[category]]
     const newPredefined = [...new Set([...value.predefined, ...categoryKeywords])]
     
     onChange({
@@ -65,8 +65,8 @@ export function KeywordSelector({ value, onChange, disabled }: KeywordSelectorPr
   }
 
   const deselectAllInCategory = (category: keyof typeof PREDEFINED_KEYWORDS) => {
-    const categoryKeywords = PREDEFINED_KEYWORDS[category]
-    const newPredefined = value.predefined.filter(k => !categoryKeywords.includes(k))
+    const categoryKeywords = [...PREDEFINED_KEYWORDS[category]] as string[]
+    const newPredefined = value.predefined.filter(k => !categoryKeywords.includes(k as any))
     
     onChange({
       predefined: newPredefined,

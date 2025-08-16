@@ -278,8 +278,8 @@ export class AppLogger {
     if (context.duration) {
       logEntry.performance = {
         duration: context.duration,
-        // Skip memory usage in Edge Runtime
-        memoryUsage: typeof process !== 'undefined' && process.memoryUsage ? process.memoryUsage() : undefined
+        // Skip memory usage in Edge Runtime (process.memoryUsage not available)
+        memoryUsage: AppLogger.getMemoryUsage()
       }
     }
 
@@ -323,6 +323,22 @@ export class AppLogger {
     }
     
     console.log('') // Empty line for readability
+  }
+
+  /**
+   * Safe memory usage getter for Edge Runtime compatibility
+   */
+  private static getMemoryUsage(): any {
+    try {
+      // Check if we're in Edge Runtime (where process.memoryUsage is not available)
+      if (typeof process === 'undefined' || typeof process.memoryUsage !== 'function') {
+        return undefined
+      }
+      return process.memoryUsage()
+    } catch (error) {
+      // Edge Runtime will throw an error, catch it gracefully
+      return undefined
+    }
   }
 
   /**

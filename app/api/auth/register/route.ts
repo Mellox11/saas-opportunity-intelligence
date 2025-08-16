@@ -28,7 +28,7 @@ async function handler(request: NextRequest) {
       data: {
         email: validatedData.email,
         passwordHash,
-        emailVerified: false, // Require email verification
+        emailVerified: process.env.NODE_ENV === 'development', // Auto-verify in development
         profile: JSON.stringify({
           name: validatedData.name,
           company: validatedData.company || null
@@ -69,4 +69,4 @@ async function handler(request: NextRequest) {
   }
 }
 
-export const POST = withRateLimit(authRateLimiter)(handler)
+export const POST = process.env.NODE_ENV === 'development' ? handler : withRateLimit(authRateLimiter)(handler)

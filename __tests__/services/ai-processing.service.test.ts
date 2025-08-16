@@ -14,8 +14,12 @@ jest.mock('@/lib/db', () => ({
     redditPost: {
       updateMany: jest.fn()
     },
+    redditComment: {
+      findMany: jest.fn()
+    },
     opportunity: {
       createMany: jest.fn(),
+      create: jest.fn(),
       findMany: jest.fn()
     }
   }
@@ -38,8 +42,33 @@ jest.mock('@/lib/observability/logger', () => ({
   AppLogger: {
     info: jest.fn(),
     error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
     business: jest.fn()
   }
+}))
+
+// Mock dimensional analysis service
+jest.mock('@/lib/services/dimensional-analysis.service', () => ({
+  DimensionalAnalysisService: jest.fn().mockImplementation(() => ({
+    analyzeDimensions: jest.fn().mockResolvedValue({
+      persona: { value: 'test-persona', confidence: 0.8 },
+      industryVertical: { value: 'test-industry', confidence: 0.8 },
+      userRole: { value: 'test-role', confidence: 0.8 },
+      workflowStage: { value: 'test-stage', confidence: 0.8 },
+      emotionLevel: { score: 7, confidence: 0.8, weight: 0.15 },
+      marketSize: { score: 8, confidence: 0.8, weight: 0.25 },
+      technicalComplexity: { score: 4, confidence: 0.8, weight: 0.15 },
+      existingSolutions: { score: 6, confidence: 0.8, weight: 0.15 },
+      budgetContext: { score: 7, confidence: 0.8, weight: 0.20 },
+      timeSensitivity: { score: 6, confidence: 0.8, weight: 0.10 },
+      compositeScore: 72,
+      confidenceScore: 0.8,
+      analysisVersion: '1.0.0',
+      processingTime: 1500,
+      createdAt: new Date()
+    })
+  }))
 }))
 
 import { generateObject } from 'ai'
@@ -106,7 +135,9 @@ describe('AIProcessingService', () => {
       } as any)
       mockPrisma.analysis.update.mockResolvedValue({} as any)
       mockPrisma.redditPost.updateMany.mockResolvedValue({ count: 2 } as any)
+      mockPrisma.redditComment.findMany.mockResolvedValue([]) // No comments by default
       mockPrisma.opportunity.createMany.mockResolvedValue({ count: 1 } as any)
+      mockPrisma.opportunity.create.mockResolvedValue({} as any)
     })
 
     it('should process posts in batches successfully', async () => {
@@ -153,17 +184,17 @@ describe('AIProcessingService', () => {
     it('should store high-scoring opportunities', async () => {
       await service.processPosts(mockPosts, 2)
 
-      // Should call createMany at least once
-      expect(mockPrisma.opportunity.createMany).toHaveBeenCalled()
+      // Should call create for each opportunity (not createMany anymore)
+      expect(mockPrisma.opportunity.create).toHaveBeenCalled()
       
       // Check if any call includes our expected data structure
-      const createManyCalls = mockPrisma.opportunity.createMany.mock.calls
-      const hasExpectedData = createManyCalls.some(call => {
+      const createCalls = mockPrisma.opportunity.create.mock.calls
+      const hasExpectedData = createCalls.some(call => {
         const data = call[0].data
-        return Array.isArray(data) && data.some(item => 
-          item.analysisId === testAnalysisId &&
-          item.classification === 'saas_feasible'
-        )
+        return data.analysisId === testAnalysisId &&
+               data.classification === 'saas_feasible' &&
+               data.opportunityScore >= 70 &&
+               data.scoringDimensions // Should include dimensional scoring
       })
       
       expect(hasExpectedData).toBe(true)
@@ -183,19 +214,11 @@ describe('AIProcessingService', () => {
 
       await service.processPosts(mockPosts, 2)
 
-      // Should call createMany but with empty data or filtered data
-      expect(mockPrisma.opportunity.createMany).toHaveBeenCalled()
+      // Should not call create since opportunities are filtered out
+      expect(mockPrisma.opportunity.create).not.toHaveBeenCalled()
       
-      // Check that no high-scoring opportunities were stored
-      const createManyCalls = mockPrisma.opportunity.createMany.mock.calls
-      const hasHighScoringData = createManyCalls.some(call => {
-        const data = call[0].data
-        return Array.isArray(data) && data.some(item => 
-          item.opportunityScore >= 70
-        )
-      })
-      
-      expect(hasHighScoringData).toBe(false)
+      // Since create wasn't called, there should be no high-scoring data stored
+      expect(mockPrisma.opportunity.create).not.toHaveBeenCalled()
     })
 
     it('should handle AI classification errors gracefully', async () => {

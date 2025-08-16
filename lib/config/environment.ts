@@ -87,7 +87,9 @@ export class EnvironmentConfig {
    */
   static get JWT_SECRET(): string {
     if (!this.validated) this.validate()
-    return process.env.JWT_SECRET!
+    const secret = process.env.JWT_SECRET
+    console.log(`🔍 [EnvironmentConfig] JWT_SECRET access - exists: ${!!secret}, length: ${secret?.length || 'undefined'}`)
+    return secret!
   }
 
   /**
