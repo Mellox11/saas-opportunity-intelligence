@@ -52,7 +52,9 @@ export class QueueCleanupService {
         AppLogger.error('Queue cleanup failed', {
           service: 'queue-cleanup',
           operation: 'cleanup_error',
-          error: error instanceof Error ? error.message : 'Unknown error'
+          metadata: {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }
         })
       })
     }, this.config.cleanupIntervalMs)
@@ -60,7 +62,9 @@ export class QueueCleanupService {
     AppLogger.info('Queue cleanup service started', {
       service: 'queue-cleanup',
       operation: 'service_started',
-      config: this.config
+      metadata: {
+        config: this.config
+      }
     })
   }
 

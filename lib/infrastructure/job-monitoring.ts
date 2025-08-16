@@ -104,7 +104,9 @@ export class JobMonitoringService {
     AppLogger.info('Job monitoring service stopped', {
       service: 'job-monitoring',
       operation: 'service_stopped',
-      finalMetrics: this.lastMetrics
+      metadata: {
+        finalMetrics: this.lastMetrics
+      }
     })
   }
 
@@ -157,10 +159,12 @@ export class JobMonitoringService {
       AppLogger.debug('Job metrics collected', {
         service: 'job-monitoring',
         operation: 'metrics_collected',
-        totalJobs,
-        totalActiveJobs,
-        totalFailedJobs,
-        overallHealth: systemMetrics.overallHealthStatus
+        metadata: {
+          totalJobs,
+          totalActiveJobs,
+          totalFailedJobs,
+          overallHealth: systemMetrics.overallHealthStatus
+        }
       })
 
       return systemMetrics
@@ -169,7 +173,9 @@ export class JobMonitoringService {
       AppLogger.error('Failed to collect job metrics', {
         service: 'job-monitoring',
         operation: 'metrics_collection_failed',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
       throw error
     }
@@ -257,8 +263,10 @@ export class JobMonitoringService {
       AppLogger.error('Failed to collect queue metrics', {
         service: 'job-monitoring',
         operation: 'queue_metrics_failed',
-        queueName: name,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        metadata: {
+          queueName: name,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }
       })
 
       // Return empty metrics on error
@@ -380,9 +388,11 @@ export class JobMonitoringService {
         service: 'job-monitoring',
         operation: 'alerts_triggered',
         businessEvent: 'system_health',
-        alertCount: this.alerts.length,
-        alerts: this.alerts,
-        overallHealth: metrics.overallHealthStatus
+        metadata: {
+          alertCount: this.alerts.length,
+          alerts: this.alerts,
+          overallHealth: metrics.overallHealthStatus
+        }
       })
     }
   }
@@ -434,7 +444,9 @@ export class JobMonitoringService {
     AppLogger.info('Job monitoring alert config updated', {
       service: 'job-monitoring',
       operation: 'config_updated',
-      newConfig: this.alertConfig
+      metadata: {
+        newConfig: this.alertConfig
+      }
     })
   }
 }
