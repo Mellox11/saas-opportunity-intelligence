@@ -1,5 +1,5 @@
 import { randomBytes, createHash } from 'crypto'
-import { prisma } from '@/lib/database/prisma-client'
+import { prisma } from '@/lib/db'
 import { AppLogger } from '@/lib/observability/logger'
 import { CostTrackingService } from '@/lib/services/cost-tracking.service'
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { PDFGenerationService } from '@/lib/services/pdf-generation.service'
 import { AppLogger } from '@/lib/observability/logger'
 import { withAuth } from '@/lib/auth/auth-guard'
-import { prisma } from '@/lib/database/prisma-client'
+import { prisma } from '@/lib/db'
 import { z } from 'zod'
 
 /**
