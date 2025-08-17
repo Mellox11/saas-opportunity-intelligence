@@ -33,29 +33,43 @@ function LoginForm() {
     setError(null)
     
     try {
+      console.log('[Login] Starting login process...')
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
       
+      console.log('[Login] Response status:', response.status)
       const result = await response.json()
+      console.log('[Login] Response data:', result)
       
       if (!response.ok) {
         throw new Error(result.error || 'Login failed')
       }
       
       // Store JWT token in localStorage for client-side use
+      console.log('[Login] Storing token in localStorage...')
       localStorage.setItem('auth-token', result.token)
       
       // Also set as httpOnly=false cookie for middleware access (backup)
       // Note: The API already sets a secure httpOnly session-token cookie with JWT
+      console.log('[Login] Setting auth-token cookie...')
       document.cookie = `auth-token=${result.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`
+      
+      // Check if cookies were set
+      console.log('[Login] Current cookies:', document.cookie)
+      
+      // Add delay to ensure cookies are set
+      console.log('[Login] Waiting for cookies to be set...')
+      await new Promise(resolve => setTimeout(resolve, 500))
       
       // Use window.location for full page reload to ensure cookies are transmitted
       // This prevents race condition where middleware runs before cookies are set
+      console.log('[Login] Redirecting to dashboard...')
       window.location.href = '/dashboard'
     } catch (err: any) {
+      console.error('[Login] Error:', err)
       setError(err.message)
     } finally {
       setIsLoading(false)
