@@ -73,22 +73,20 @@ export class SessionValidator {
       console.log(`🔍 [SessionValidator] session-token cookie: ${sessionTokenCookie ? `present (${sessionTokenCookie.length} chars)` : 'missing'}`)
       
       if (sessionTokenCookie) {
-        // Try Edge Runtime compatible JWT verification first
-        const secret = process.env.JWT_SECRET
-        if (secret) {
-          const decoded = await EdgeJWT.verifyToken(sessionTokenCookie, secret)
-          console.log(`🔍 [SessionValidator] session-token cookie JWT valid (EdgeJWT): ${!!decoded}`)
+        // In production, skip EdgeJWT and use regular JWT verification directly
+        // EdgeJWT has issues with tokens created by jsonwebtoken library
+        console.log(`🔍 [SessionValidator] Attempting to verify session-token cookie`)
+        
+        try {
+          // Use regular JWT library which matches how tokens are created
+          const decoded = AuthService.verifyToken(sessionTokenCookie)
+          console.log(`🔍 [SessionValidator] session-token cookie JWT valid: ${!!decoded}`)
           if (decoded) {
             console.log(`✅ [SessionValidator] Authenticated via session-token cookie for user: ${decoded.userId}`)
             return true
           }
-        }
-        // Fallback to regular JWT library
-        const decodedFallback = AuthService.verifyToken(sessionTokenCookie)
-        console.log(`🔍 [SessionValidator] session-token cookie JWT valid (fallback): ${!!decodedFallback}`)
-        if (decodedFallback) {
-          console.log(`✅ [SessionValidator] Authenticated via session-token cookie (fallback) for user: ${decodedFallback.userId}`)
-          return true
+        } catch (error) {
+          console.log(`❌ [SessionValidator] session-token verification failed: ${error instanceof Error ? error.message : 'Unknown'}`)
         }
       }
 
